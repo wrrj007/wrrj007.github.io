@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+    <title>九宫·天衍 | 玄数推演</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Cormorant Garamond', 'Times New Roman', '宋体', serif;
+        }
+
+        body {
+            background: linear-gradient(145deg, #0d0b14 0%, #1a1625 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .sacred-container {
+            max-width: 1300px;
+            width: 100%;
+            background: rgba(15, 12, 22, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(200, 170, 120, 0.25);
+            border-radius: 48px;
+            padding: 2.2rem 2rem;
+            box-shadow: 0 30px 50px rgba(0,0,0,0.7), 0 0 0 1px rgba(200, 170, 130, 0.3) inset, 0 0 30px rgba(180, 140, 80, 0.2);
+        }
+
+        /* 头部简洁 */
+        .title-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            padding: 0 0.5rem;
+        }
+        .title-row h1 {
+            font-size: 2.8rem;
+            font-weight: 400;
+            letter-spacing: 6px;
+            color: #ecd8b4;
+            text-shadow: 0 2px 10px #946b42, 0 0 20px #c7a16b;
+        }
+        .title-row small {
+            color: #a28f78;
+            font-size: 1rem;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #5f4e3a;
+            padding-bottom: 4px;
+        }
+
+        /* 输入区 — 贵气留白 */
+        .input-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+            margin-bottom: 3rem;
+            justify-content: center;
+            background: rgba(0,0,0,0.2);
+            border-radius: 200px;
+            padding: 1.2rem 2rem;
+            border: 1px solid #524633;
+        }
+
+        .input-item {
+            flex: 1 1 140px;
+            display: flex;
+            align-items: center;
+            background: rgba(25, 20, 30, 0.7);
+            border-radius: 120px;
+            border: 1px solid #7d6b53;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+        .input-item:focus-within {
+            border-color: #e4bc7c;
+            box-shadow: 0 0 0 3px rgba(200, 160, 100, 0.3), 0 0 20px #997f54;
+        }
+
+        .input-item label {
+            font-size: 1.3rem;
+            font-weight: 400;
+            color: #cdb699;
+            padding: 0 0.8rem 0 1.5rem;
+            letter-spacing: 1px;
+            border-right: 1px solid #5f4f3b;
+        }
+
+        .input-item input {
+            background: transparent;
+            border: none;
+            padding: 1rem 0.8rem 1rem 0.8rem;
+            font-size: 1.5rem;
+            width: 100px;
+            flex: 1;
+            color: #f2e3cd;
+            font-weight: 400;
+            outline: none;
+            font-family: inherit;
+        }
+        .input-item input::placeholder {
+            color: #5e5343;
+            font-size: 1.2rem;
+            font-style: italic;
+        }
+        .input-item input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        .input-item input[type="number"]::-webkit-outer-spin-button,
+        .input-item input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* 按钮 — 重工鎏金 */
+        .action {
+            display: flex;
+            justify-content: center;
+            margin: 1.5rem 0 2.5rem;
+        }
+        .divine-btn {
+            background: linear-gradient(165deg, #3a2e20 0%, #5f4c34 50%, #806a48 100%);
+            border: none;
+            padding: 1.2rem 4rem;
+            border-radius: 80px;
+            font-size: 1.8rem;
+            font-weight: 500;
+            color: #f2e0c2;
+            letter-spacing: 8px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px -5px #221c12, 0 0 0 1px #c7a86b inset, 0 0 20px #ad8f5f;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            border: 1px solid #b5955d;
+        }
+        .divine-btn:hover {
+            background: linear-gradient(165deg, #4f3e2b 0%, #78623f 50%, #9b825a 100%);
+            box-shadow: 0 15px 35px -3px #2f2317, 0 0 0 1px #edcf9b inset, 0 0 35px #cfac78;
+            color: #ffffff;
+            transform: scale(1.02);
+        }
+        .divine-btn:active {
+            transform: scale(0.98);
+            background: linear-gradient(165deg, #2e251b 0%, #4f3f2b 100%);
+            box-shadow: inset 0 5px 15px #00000055;
+        }
+
+        /* 结果卡片 — 三才阵 */
+        .results-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .oracle-card {
+            flex: 1 1 280px;
+            min-width: 260px;
+            background: rgba(25, 20, 30, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(210, 170, 110, 0.3);
+            border-radius: 36px;
+            padding: 1.8rem 1.2rem 1.8rem 1.8rem;
+            box-shadow: 0 20px 40px -15px black, 0 0 0 1px rgba(200, 160, 100, 0.2) inset, 0 0 40px rgba(120, 70, 20, 0.2);
+            transition: 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .oracle-card:hover {
+            border-color: #b69260;
+            box-shadow: 0 30px 50px -20px #0a0703, 0 0 0 1px #dbb47a inset;
+        }
+
+        .card-header {
+            font-size: 1.9rem;
+            font-weight: 500;
+            color: #f5d9b3;
+            border-bottom: 1px dashed #9e8b6f;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .card-header .num-badge {
+            background: #3b3124;
+            border-radius: 40px;
+            padding: 0.2rem 1.2rem;
+            font-size: 1.2rem;
+            color: #dbbd91;
+            border: 1px solid #776445;
+        }
+
+        .subhead {
+            font-size: 1.2rem;
+            color: #cfbc9b;
+            margin-bottom: 1.2rem;
+            font-style: italic;
+        }
+        .subhead strong {
+            font-weight: 600;
+            color: #ebca9b;
+            margin-right: 10px;
+        }
+
+        .oracle-desc {
+            font-size: 1.1rem;
+            line-height: 1.55;
+            color: #e1cfb5;
+            white-space: pre-line;
+            margin-bottom: 1.2rem;
+            flex: 1;
+        }
+        .oracle-desc .red-bless {
+            color: #ff7b6b;
+            font-weight: 700;
+            text-shadow: 0 0 5px #c0392b;
+            letter-spacing: 1px;
+            background: rgba(200, 60, 30, 0.15);
+            padding: 0 4px;
+            border-radius: 12px;
+            font-size: 1.2rem;
+        }
+
+        .wuxing-line {
+            border-top: 1px solid #66573f;
+            padding-top: 1rem;
+            font-size: 1.2rem;
+            color: #b8a58a;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .wuxing-line span {
+            background: #2a231b;
+            padding: 6px 18px;
+            border-radius: 40px;
+            border: 1px solid #70603f;
+            color: #fad98b;
+            font-size: 1.1rem;
+        }
+
+        /* 占位空卡片状态 */
+        .oracle-card.empty .card-header {
+            color: #7a6b58;
+        }
+        .oracle-card.empty .subhead,
+        .oracle-card.empty .oracle-desc,
+        .oracle-card.empty .wuxing-line {
+            opacity: 0.5;
+        }
+
+        /* 适配小屏 */
+        @media (max-width: 700px) {
+            .sacred-container { padding: 1.5rem; }
+            .title-row h1 { font-size: 2.2rem; }
+            .input-panel { flex-direction: column; border-radius: 60px; padding: 1.2rem; }
+            .input-item { width: 100%; }
+            .divine-btn { font-size: 1.5rem; letter-spacing: 4px; padding: 1rem 2rem; }
+            .card-header { font-size: 1.6rem; }
+        }
+        @media (max-width: 480px) {
+            .oracle-card { min-width: 100%; }
+        }
+
+        /* 隐藏 Spin 按钮 */
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body>
+<div class="sacred-container">
+    <div class="title-row">
+        <h1>太玄·九符</h1>
+        <small>三传立极</small>
+    </div>
+
+    <!-- 三个输入框，无预设零值，placeholder优雅 -->
+    <div class="input-panel">
+        <div class="input-item">
+            <label>数字1</label>
+            <input type="number" id="field1" min="0" step="any" placeholder="阳数" value="">
+        </div>
+        <div class="input-item">
+            <label>数字2</label>
+            <input type="number" id="field2" min="0" step="any" placeholder="阴数" value="">
+        </div>
+        <div class="input-item">
+            <label>数字3</label>
+            <input type="number" id="field3" min="0" step="any" placeholder="和合" value="">
+        </div>
+    </div>
+
+    <div class="action">
+        <button class="divine-btn" id="calcBtn">推演</button>
+    </div>
+
+    <!-- 三个结果卡片容器 -->
+    <div class="results-grid" id="resultGrid">
+        <!-- 卡片1 -->
+        <div class="oracle-card" id="card1">
+            <div class="card-header"><span>一·命符</span><span class="num-badge" id="badge1">─</span></div>
+            <div class="subhead" id="subhead1">─</div>
+            <div class="oracle-desc" id="desc1">等待天机……</div>
+            <div class="wuxing-line" id="wuxing1"><span>⚭</span>─</div>
+        </div>
+        <!-- 卡片2 -->
+        <div class="oracle-card" id="card2">
+            <div class="card-header"><span>二·地符</span><span class="num-badge" id="badge2">─</span></div>
+            <div class="subhead" id="subhead2">─</div>
+            <div class="oracle-desc" id="desc2">等待天机……</div>
+            <div class="wuxing-line" id="wuxing2"><span>⚭</span>─</div>
+        </div>
+        <!-- 卡片3 -->
+        <div class="oracle-card" id="card3">
+            <div class="card-header"><span>三·人符</span><span class="num-badge" id="badge3">─</span></div>
+            <div class="subhead" id="subhead3">─</div>
+            <div class="oracle-desc" id="desc3">等待天机……</div>
+            <div class="wuxing-line" id="wuxing3"><span>⚭</span>─</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---------- 九宫宝库 (索引1~9) ----------
+        const ORACLE = {
+            1: {
+                name: "大安",
+                wuxing: "木",
+                direction: "正东",
+                desc: "长期、缓慢、稳定\n求安稳，大安最吉\n求变化，大安不吉\n在五行上被克制。\n拜三清",
+                wuxingDesc: "曲直。木生火；木克土。"
+            },
+            2: {
+                name: "流连",
+                wuxing: "木",
+                direction: "西南",
+                desc: "停止、反复、复杂、剪不断，理还乱...\n想挽留，流连最吉\n否则，都很恶心\n按个结果中，有两个流连，这事儿就算了吧。\n拜文昌",
+                wuxingDesc: "曲直。木生火；木克土。"
+            },
+            3: {
+                name: "速喜",
+                wuxing: "火",
+                direction: "正南",
+                desc: "惊喜、快速、突然\n意想不到的好事\n问事需要稳定时，又可能是惊吓!\n拜雷祖",
+                wuxingDesc: "炎上。火生土；火克金。"
+            },
+            4: {
+                name: "赤口",
+                wuxing: "金",
+                direction: "正西",
+                desc: "争斗、凶恶、伤害、\n吵架官司，打架，争斗，诉讼是非\n肉体受伤，血光之灾（尤其两个赤口叠现）\n拜将帅",
+                wuxingDesc: "从革。金生水；金克木。"
+            },
+            5: {
+                name: "小吉",
+                wuxing: "水",
+                direction: "正北",
+                desc: "起步、不多（及格）、尚可\n成中有缺，适合起步。\n结果不会很多，勉强可以。\n碰上小吉，都会有阻碍。\n拜真武",
+                wuxingDesc: "润下。水生木；水克火。"
+            },
+            6: {
+                name: "空亡",
+                wuxing: "土",
+                direction: "内",
+                desc: "失去、虚伪、空想\n先得再失，尤忌金钱之事。\n可多接触：玄学、哲学、心理学，等非结果固定性的\n现实的事，遇空亡，很差\n虚幻之事，遇空亡，很好\n拜玉皇",
+                wuxingDesc: "稼籍。土生金；土克水。"
+            },
+            7: {
+                name: "病符",
+                wuxing: "金",
+                direction: "西南",
+                desc: "病态、异常、治疗\n病态+治疗=病符\n先有病，才需要“治疗”\n整个过程不会很好受，不会特别顺利。\n拜后土",
+                wuxingDesc: "从革。金生水；金克木。"
+            },
+            8: {
+                name: "桃花",
+                wuxing: "土",
+                direction: "东北",
+                desc: "欲望、牵绊、异性\n人际关系，和欲望、异性有关，牵绊此事。\n除了想谈恋爱、(男女之事)，遇桃花都不好。\n会被这些人，牵绊着。\n拜城隍",
+                wuxingDesc: "稼籍。土生金；土克水。"
+            },
+            9: {
+                name: "天德",
+                wuxing: "金",
+                direction: "西北",
+                desc: "贵人、上司、高远\n求人办事，靠人成事。\n求人靠人，来帮自己。\n五行上被天德所生，\n那这事，肯定有贵人相助。\n拜紫薇",
+                wuxingDesc: "从革。金生水；金克木。"
+            }
+        };
+
+        // 辅助：将描述中的“拜xxx”标红加粗
+        function formatDesc(text) {
+            return text.replace(/(拜[\u4e00-\u9fa5]+)/g, '<span class="red-bless">$1</span>');
+        }
+
+        // 获取三个输入框
+        const inp1 = document.getElementById('field1');
+        const inp2 = document.getElementById('field2');
+        const inp3 = document.getElementById('field3');
+        const calcBtn = document.getElementById('calcBtn');
+
+        // 卡片元素
+        const badge1 = document.getElementById('badge1');
+        const subhead1 = document.getElementById('subhead1');
+        const desc1 = document.getElementById('desc1');
+        const wuxing1 = document.getElementById('wuxing1');
+        const badge2 = document.getElementById('badge2');
+        const subhead2 = document.getElementById('subhead2');
+        const desc2 = document.getElementById('desc2');
+        const wuxing2 = document.getElementById('wuxing2');
+        const badge3 = document.getElementById('badge3');
+        const subhead3 = document.getElementById('subhead3');
+        const desc3 = document.getElementById('desc3');
+        const wuxing3 = document.getElementById('wuxing3');
+
+        // 卡片外层
+        const card1 = document.getElementById('card1');
+        const card2 = document.getElementById('card2');
+        const card3 = document.getElementById('card3');
+
+        // ---------- 修正后的计算逻辑：循环数数（模9，1~9）----------
+        function getOracleIndex(total) {
+            // 输入可能是小数，向下取整（占卜通常用整数）
+            let n = Math.floor(Number(total));
+            // 非正数（包括0）视为无效，返回0表示空白
+            if (isNaN(n) || n <= 0) return 0;
+            // 从1开始数：第1大安，第2流连 ... 第9天德，第10又大安
+            // 公式：(n-1) % 9 + 1
+            return ((n - 1) % 9) + 1;
+        }
+
+        // 清空输入框负值/无效
+        function sanitizeInput(input) {
+            let val = input.value.trim();
+            if (val === '') return;
+            let num = Number(val);
+            if (isNaN(num) || num < 0) {
+                input.value = '';
+            }
+        }
+
+        [inp1, inp2, inp3].forEach(inp => {
+            inp.addEventListener('blur', function() { sanitizeInput(this); });
+        });
+
+        // 刷新卡片显示
+        function updateCards() {
+            // 取值，空字符串转为0
+            let v1 = inp1.value === '' ? 0 : Number(inp1.value);
+            let v2 = inp2.value === '' ? 0 : Number(inp2.value);
+            let v3 = inp3.value === '' ? 0 : Number(inp3.value);
+            // 再次确保非负
+            v1 = (isNaN(v1) || v1 < 0) ? 0 : v1;
+            v2 = (isNaN(v2) || v2 < 0) ? 0 : v2;
+            v3 = (isNaN(v3) || v3 < 0) ? 0 : v3;
+
+            const sum1 = v1;
+            const sum2 = v1 + v2;
+            const sum3 = v1 + v2 + v3;
+
+            // 使用新的循环数数逻辑
+            const digit1 = getOracleIndex(sum1);
+            const digit2 = getOracleIndex(sum2);
+            const digit3 = getOracleIndex(sum3);
+
+            // 渲染卡片
+            renderCard(1, digit1, badge1, subhead1, desc1, wuxing1);
+            renderCard(2, digit2, badge2, subhead2, desc2, wuxing2);
+            renderCard(3, digit3, badge3, subhead3, desc3, wuxing3);
+        }
+
+        function renderCard(cardIndex, digit, badgeEl, subheadEl, descEl, wuxingEl) {
+            if (digit >= 1 && digit <= 9) {
+                const data = ORACLE[digit];
+                badgeEl.textContent = digit;
+                subheadEl.innerHTML = `${data.name} | ${data.wuxing} | ${data.direction}`;
+                descEl.innerHTML = formatDesc(data.desc);
+                wuxingEl.innerHTML = `<span>⚭</span> ${data.wuxingDesc}`;
+                document.getElementById(`card${cardIndex}`).classList.remove('empty');
+            } else {
+                // digit 为 0 时显示空白占位
+                badgeEl.textContent = '○';
+                subheadEl.innerHTML = '— · 无极 · —';
+                descEl.innerHTML = '归空虚无，再启一数';
+                wuxingEl.innerHTML = '<span>⚭</span> 虚位待定';
+                document.getElementById(`card${cardIndex}`).classList.add('empty');
+            }
+        }
+
+        // 初始渲染 (输入框为空, 计算得0, 显示空白占位)
+        window.addEventListener('load', function() {
+            inp1.value = '';
+            inp2.value = '';
+            inp3.value = '';
+            updateCards();
+        });
+
+        // 按钮事件
+        calcBtn.addEventListener('click', updateCards);
+    })();
+</script>
+</body>
+</html>
