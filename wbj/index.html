@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>无边记 · Freeform</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 顶部工具栏 -->
+  <header id="toolbar">
+    <div class="brand">🪄 无边记</div>
+    <div class="tools">
+      <button id="addTextBtn" title="添加文本">come Text T</button>
+      <button id="addTextBtn2">✏️ 文本</button>
+      <span style="width:1px"></span>
+    </div>
+    <div class="tools">
+      <label id="addImageBtn" class="btn">🖼️ 图片<input id="imageInput" type="file" accept="image/*" multiple hidden /></label>
+      <button id="addNoteBtn" class="btn">📝 便签</button>
+      <button id="addArrowBtn" class="btn">➡️ 箭头线</button>
+      <button id="clearConnBtn" class="btn">🧹 清除连线</button>
+      <button id="clearBtn" class="btn danger">🗑️ 清空</button>
+      <button id="saveBtn" class="btn">💾 保存</button>
+      <label class="btn">📂 导入<input id="importInput" type="file" accept="application/json,.json" hidden /></label>
+    </div>
+    <div class="zoom">
+      <button id="zoomOut">－</button><span id="zoomVal">100%</span><button id="zoomIn">＋</button>
+    </div>
+  </header>
+
+  <!-- 画布区 -->
+  <div id="canvas">
+    <!-- 网格背景 -->
+    <div id="grid"></div>
+    <!-- 无限平移层 -->
+    <div id="world">
+      <!-- 连线 SVG 层 -->
+      <svg id="connLayer"></svg>
+      <!-- 元素容器 -->
+      <div id="items"></div>
+    </div>
+    <div id="hint">拖动空白处平移 · 滚轮缩放 · 双击空白添加文本 · 长按元素👇拖出连线</div>
+  </div>
+
+  <!-- 右键快捷菜单 -->
+  <div id="ctxMenu">
+    <div class="ctx-item" data-act="text">✏️ 添加文本</div>
+    <div class="ctx-item" data-act="note">📝 添加便签</div>
+    <div class="ctx-item" data-act="image">🖼️ 添加图片</div>
+    <div class="ctx-item" data-act="arrow">➡️ 添加箭头线</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" data-act="del">🗑️ 删除元素</div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
