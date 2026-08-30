@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>综合素质（幼儿园）历年真题 · 模拟考试</title>
+<style>
+:root{
+  --main:#4a6cf7; --ok:#16a34a; --err:#dc2626; --warn:#f59e0b; --bg:#eef1f6;
+  --card:#ffffff; --line:#e2e8f0;
+}
+*{box-sizing:border-box;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif}
+body{margin:0;background:var(--bg);color:#1e293b;line-height:1.6}
+header{background:linear-gradient(135deg,#4a6cf7,#6a5bcd);color:#fff;padding:14px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+header h1{font-size:19px;margin:0;font-weight:700}
+.container{max-width:960px;margin:16px auto;padding:0 14px 60px}
+.card{background:var(--card);border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:18px 20px;margin-bottom:14px}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+select{padding:9px 12px;border-radius:8px;border:1px solid #cbd5e1;font-size:14px;background:#fff}
+.btn{padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;color:#fff;transition:opacity .15s}
+.btn:hover{opacity:.88}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-main{background:var(--main)}
+.btn-ok{background:var(--ok)}
+.btn-ghost{background:#94a3b8}
+.tip{font-size:12.5px;color:#64748b}
+.section-title{font-size:16px;font-weight:700;border-left:5px solid var(--main);padding:5px 12px;margin:24px 0 12px;background:#eef2ff;border-radius:4px}
+.q{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+.q.q-right{border:1.5px solid var(--ok);background:#f0fdf4}
+.q.q-wrong{border:1.5px solid var(--err);background:#fef2f2}
+.q-id{font-weight:700;color:var(--main);font-size:14px;margin-bottom:6px}
+.q-stem{font-size:15px;margin:6px 0;white-space:pre-wrap;word-wrap:break-word}
+.q-img{margin:8px 0}
+.q-img img{max-width:100%;max-height:340px;border-radius:6px;border:1px solid var(--line)}
+.opts label{display:flex;align-items:flex-start;gap:8px;margin:5px 0;padding:8px 11px;border-radius:7px;cursor:pointer;border:1px solid transparent;transition:background .1s}
+.opts label:hover{background:#f1f5f9}
+.opts input{margin-top:3px}
+.opt-txt{white-space:pre-wrap;word-wrap:break-word;flex:1}
+.opt-right{background:#dcfce7!important;border-color:var(--ok)!important}
+.opt-user-err{background:#fee2e2!important;border-color:var(--err)!important}
+.answer-box{margin-top:10px;padding:11px 13px;background:#f8fafc;border-radius:8px;border:1px dashed #94a3b8;white-space:pre-wrap;word-wrap:break-word;font-size:14px}
+.answer-box b{color:#334155}
+details.ans{margin-top:8px;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:10px 13px}
+details.ans summary{cursor:pointer;font-weight:600;color:var(--main);font-size:14px}
+details.ans .content{margin-top:8px;white-space:pre-wrap;word-wrap:break-word;font-size:14px}
+.material-box{background:#fbfcfe;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.material-box .m-head{font-weight:700;color:#334155;margin-bottom:6px}
+.result-banner{border-radius:10px;padding:16px 18px;margin-bottom:16px;font-size:16px;font-weight:700;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.result-banner.red{background:linear-gradient(135deg,#dc2626,#b91c1c)}
+.result-banner.yellow{background:linear-gradient(135deg,#f59e0b,#d97706)}
+.result-banner.green{background:linear-gradient(135deg,#16a34a,#15803d)}
+.result-banner .stat{font-size:13px;font-weight:500}
+.hidden{display:none!important}
+.center{text-align:center}
+.muted{color:#64748b}
+/* 弹窗 */
+.modal-mask{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.modal-head h3{margin:0;font-size:17px}
+.modal-body{padding:8px 20px;overflow-y:auto}
+.modal-close{cursor:pointer;border:none;background:#e2e8f0;border-radius:6px;padding:6px 12px;font-size:14px}
+.wrong-item{border:1px solid #fecaca;background:#fff7f7;border-radius:8px;padding:11px 13px;margin:10px 0}
+.wrong-item .wi-head{font-weight:700;color:var(--err);margin-bottom:4px}
+.wrong-item .wi-corr{color:var(--ok);font-weight:600}
+.spin{display:inline-block;width:16px;height:16px;border:3px solid #cbd5e1;border-top-color:var(--main);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 综合素质（幼儿园）历年真题</h1>
+  <div style="font-size:13px;opacity:.9">模拟考试 · 自动判分</div>
+</header>
+
+<div class="container">
+  <div class="card">
+    <div class="toolbar">
+      <label>选择年份：</label>
+      <select id="yearSel"></select>
+      <button class="btn btn-main" id="startBtn" onclick="startExam()">开始考试</button>
+      <button class="btn btn-ok hidden" id="submitBtn" onclick="submitExam()">提交并判分</button>
+      <span class="tip" style="margin-left:4px">（单选 1-29 题计分；材料分析、写作仅供对照参考答案）</span>
+    </div>
+    <div class="tip" style="margin-top:8px" id="statusTip"></div>
+  </div>
+
+  <div id="examBody"></div>
+</div>
+
+<!-- 弹窗 -->
+<div class="modal-mask hidden" id="modalMask">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">❌ 本次错题</h3>
+      <button class="modal-close" onclick="closeModal()">关闭</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+ * 综合素质（幼儿园）历年真题 - 纯 JS + HTML 实现
+ * 数据来源：真题与答案OK/*.docx（浏览器端解压解析 docx）
+ * ============================================================ */
+
+/* ---------------- 年份 ---------------- */
+var YEARS = [
+  "2016年上","2016年下","2017年上","2017年下","2018年上","2018年下",
+  "2019年上","2019年下","2020年下","2021年上","2021年下","2022年上",
+  "2022年下","2023年上","2023年下","2024年上","2024年下","2025年上","2026年上"
+];
+var DATA_DIR = "data";   // 数据目录（英文，避免中文路径在服务器报错）
+// 年份显示名 -> 英文文件名（如 "2016年上" -> "2016_h1.docx"）
+function fileOf(y){
+  return y.replace("年上","_h1").replace("年下","_h2") + ".docx";
+}
+var current = null; // { year, singleChoice, materials, writing }
+var cache = {};     // year -> parsed data
+
+function $(id){return document.getElementById(id);}
+function nl2brSafe(s){return (s||'');}
+
+/* ---------------- ZIP / DOCX 解析 ---------------- */
+function toBase64(u8){
+  var bin='', chunk=0x8000;
+  for(var i=0;i<u8.length;i+=chunk){
+    bin += String.fromCharCode.apply(null, u8.subarray(i, Math.min(i+chunk, u8.length)));
+  }
+  return btoa(bin);
+}
+
+async function unzip(buffer){
+  var u8 = new Uint8Array(buffer), dv = new DataView(buffer);
+  var eocd=-1;
+  for(var i=u8.length-22;i>=0;i--){
+    if(u8[i]===0x50 && u8[i+1]===0x4b && u8[i+2]===0x05 && u8[i+3]===0x06){eocd=i;break;}
+  }
+  if(eocd<0) throw new Error("不是有效的 docx(zip) 文件");
+  var count = dv.getUint16(eocd+10, true);
+  var off = dv.getUint32(eocd+16, true);
+  var entries = {};
+  for(var n=0;n<count;n++){
+    if(dv.getUint32(off,true)!==0x02014b50) break;
+    var compMethod = dv.getUint16(off+10,true);
+    var compSize = dv.getUint32(off+20,true);
+    var nameLen = dv.getUint16(off+28,true);
+    var extraLen = dv.getUint16(off+30,true);
+    var commentLen = dv.getUint16(off+32,true);
+    var localOff = dv.getUint32(off+42,true);
+    var name = new TextDecoder().decode(u8.slice(off+46, off+46+nameLen));
+    entries[name] = {method:compMethod, size:compSize, off:localOff};
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  var out={};
+  for(var name in entries){
+    var e=entries[name];
+    var lnameLen=dv.getUint16(e.off+26,true), lextraLen=dv.getUint16(e.off+28,true);
+    var dataStart = e.off+30+lnameLen+lextraLen;
+    var comp = u8.slice(dataStart, dataStart+e.size);
+    if(e.method===0){ out[name]=comp; }
+    else {
+      var ds = new DecompressionStream('deflate-raw');
+      var stream = new Blob([comp]).stream().pipeThrough(ds);
+      var ab = await new Response(stream).arrayBuffer();
+      out[name] = new Uint8Array(ab);
+    }
+  }
+  return out;
+}
+
+var NS_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+var NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main";
+var NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+function parseBlocks(files){
+  var xmlStr = new TextDecoder().decode(files["word/document.xml"]);
+  var doc = new DOMParser().parseFromString(xmlStr, "application/xml");
+  // 关系映射 rId -> media 相对路径
+  var rels = {};
+  try{
+    var relXml = new TextDecoder().decode(files["word/_rels/document.xml.rels"]);
+    var rp = new DOMParser().parseFromString(relXml, "application/xml");
+    var relsEl = rp.getElementsByTagNameNS("*","Relationship");
+    for(var i=0;i<relsEl.length;i++){
+      var id = relsEl[i].getAttribute("Id");
+      var target = relsEl[i].getAttribute("Target");
+      rels[id] = target; // 例如 media/image1.png
+    }
+  }catch(e){}
+  function mimeOf(name){
+    if(/\.png$/i.test(name)) return "image/png";
+    if(/\.jpe?g$/i.test(name)) return "image/jpeg";
+    if(/\.gif$/i.test(name)) return "image/gif";
+    return "image/png";
+  }
+  var blocks=[];
+  var ps = doc.getElementsByTagNameNS(NS_W, "p");
+  for(var i=0;i<ps.length;i++){
+    var p=ps[i];
+    // 文本
+    var ts = p.getElementsByTagNameNS(NS_W,"t");
+    var text="";
+    for(var j=0;j<ts.length;j++) text += ts[j].textContent;
+    // 图片
+    var imgs=[];
+    var blips = p.getElementsByTagNameNS(NS_A,"blip");
+    for(var k=0;k<blips.length;k++){
+      var rid = blips[k].getAttributeNS(NS_R,"embed");
+      var target = rels[rid];
+      if(target){
+        var bytes = files["word/"+target];
+        if(bytes){
+          imgs.push("data:"+mimeOf(target)+";base64,"+toBase64(bytes));
+        }
+      }
+    }
+    // 居中
+    var centered=false;
+    var pPr = p.getElementsByTagNameNS(NS_W,"pPr")[0];
+    if(pPr){
+      var jc = pPr.getElementsByTagNameNS(NS_W,"jc")[0];
+      centered = jc && jc.getAttributeNS(NS_W,"val")==="center";
+    }
+    blocks.push({text:text, images:imgs, centered:centered});
+  }
+  return blocks;
+}
+
+/* ---------------- 结构解析（正则与原型一致） ---------------- */
+var RE_SEC_C = /一、单项选择题/;
+var RE_SEC_M = /二、材料分析题/;
+var RE_SEC_W = /三、写作题/;
+var RE_QNUM  = /^(\d{1,2})\s*[\.、．]\s*(.*)$/;
+var RE_OPT   = /^([A-D])\s*[\.、．、:：)）]?\s*(.*)$/;
+var RE_ANS   = /^【答案】\s*[：:]?\s*(.*)$/;
+var RE_ANALY = /^【答案解析】\s*[：:]?\s*(.*)$/;
+var RE_REF   = /^【参考答案(\d)?】\s*[：:]?\s*(.*)$/;
+var RE_ESSAY = /^【[^】]*范文[^】]*】\s*[：:]?\s*(.*)$/;
+var RE_MATSTART = /^(?:（[一二三四五六]）\s*(?:材料\s*[:：])?\s*$|材料\s*[:：]|[3][0-2]\.材料)/;
+
+function strip(s){return (s||"").trim();}
+
+function splitSections(blocks){
+  var sec={choice:[],material:[],writing:[]};
+  var cur=null;
+  for(var i=0;i<blocks.length;i++){
+    var t=strip(blocks[i].text);
+    if(RE_SEC_C.test(t)){cur="choice";continue;}
+    if(RE_SEC_M.test(t)){cur="material";continue;}
+    if(RE_SEC_W.test(t)){cur="writing";continue;}
+    if(cur) sec[cur].push(blocks[i]);
+  }
+  return sec;
+}
+
+function parseChoice(blocks){
+  var qs=[], i=0, n=blocks.length;
+  while(i<n){
+    var t=strip(blocks[i].text);
+    var m=RE_QNUM.exec(t);
+    if(!m){i++;continue;}
+    var num=parseInt(m[1],10);
+    var stem=[m[2]?m[2]:""]; if(!stem[0]) stem=[];
+    var imgs=blocks[i].images.slice();
+    i++;
+    var opts={}, answer="", analysis=[], mode="stem";
+    while(i<n){
+      var t2=strip(blocks[i].text);
+      if(RE_QNUM.test(t2)) break;
+      var om=RE_OPT.exec(t2);
+      if(om && (mode==="stem"||mode==="options")){
+        var L=om[1], v=om[2]?om[2].trim():"";
+        opts[L]=(opts[L]?opts[L]+" ":"")+v; opts[L]=opts[L].trim();
+        mode="options";
+        if(blocks[i].images.length) imgs=imgs.concat(blocks[i].images);
+        i++; continue;
+      }
+      var m2=RE_ANS.exec(t2);
+      if(m2){answer=(m2[1]||"").trim(); mode="answer"; i++; continue;}
+      var m3=RE_ANALY.exec(t2);
+      if(m3){var av=(m3[1]||"").trim(); if(av) analysis.push(av); mode="analysis"; i++; continue;}
+      // 其他
+      if(blocks[i].images.length && !t2){ imgs=imgs.concat(blocks[i].images); i++; continue; }
+      if(t2){
+        if(mode==="analysis"){ analysis.push(t2); }
+        else if(mode==="options" && Object.keys(opts).length){
+          var last=Object.keys(opts)[Object.keys(opts).length-1];
+          opts[last]=(opts[last]+t2).trim();
+        } else {
+          stem.push(t2);
+        }
+      }
+      if(blocks[i].images.length) imgs=imgs.concat(blocks[i].images);
+      i++;
+    }
+    qs.push({num:num, stem:stem.join("\n").trim(), options:opts, answer:answer, analysis:analysis.join("\n").trim(), images:imgs});
+  }
+  return qs;
+}
+
+function parseMaterial(blocks){
+  var mats=[], cur=null;
+  function newMat(){return {num:null,body:[],question:[],answer:[],images:[],state:"body"};}
+  function fin(c){return {num:c.num,body:c.body.join("\n").trim(),question:c.question.join("\n").trim(),answer:c.answer.join("\n").trim(),images:c.images};}
+  for(var bi=0;bi<blocks.length;bi++){
+    var t=strip(blocks[bi].text), b=blocks[bi];
+    if(/^(并回答问题|请认真|阅读材料|在每小题|注意事项)/.test(t)) continue;
+    if(RE_MATSTART.test(t)){
+      var mn=/^([3][0-2])\./.exec(t);
+      if(cur && (cur.body.length||cur.question.length||cur.answer.length)) mats.push(fin(cur));
+      cur=newMat();
+      if(mn) cur.num=parseInt(mn[1],10);
+      if(b.images.length) cur.images=cur.images.concat(b.images);
+      continue;
+    }
+    if(RE_REF.test(t)){
+      if(!cur) cur=newMat();
+      var rm=RE_REF.exec(t);
+      var label="【参考答案"+(rm[1]||"")+"】";
+      var rest=(rm[2]||"").trim();
+      cur.answer.push(label+((rest)?":"+rest:""));
+      cur.state="answer";
+      if(b.images.length) cur.images=cur.images.concat(b.images);
+      continue;
+    }
+    var qm=RE_QNUM.exec(t);
+    if(qm && parseInt(qm[1],10)>=30 && parseInt(qm[1],10)<=32){
+      if(!cur) cur=newMat();
+      if(cur.num==null) cur.num=parseInt(qm[1],10);
+      cur.question.push(t); cur.state="question";
+      if(b.images.length) cur.images=cur.images.concat(b.images);
+      continue;
+    }
+    if(/^问题\s*[:：]?/.test(t)){
+      if(!cur) cur=newMat();
+      cur.question.push(t); cur.state="question";
+      if(b.images.length) cur.images=cur.images.concat(b.images);
+      continue;
+    }
+    if(t){
+      if(!cur) continue;
+      if(cur.state==="answer") cur.answer.push(t);
+      else if(cur.state==="question") cur.question.push(t);
+      else cur.body.push(t);
+    }
+    if(b.images.length && cur) cur.images=cur.images.concat(b.images);
+  }
+  if(cur && (cur.body.length||cur.question.length||cur.answer.length)) mats.push(fin(cur));
+  for(var k=0;k<mats.length;k++){ if(mats[k].num==null) mats[k].num=30+k; }
+  return mats;
+}
+
+function parseWriting(blocks){
+  var content=[], answer=[], state="content";
+  for(var bi=0;bi<blocks.length;bi++){
+    var t=strip(blocks[bi].text), b=blocks[bi];
+    var m=RE_ESSAY.exec(t);
+    if(m){ if(m[1]&&m[1].trim()) answer.push(m[1].trim()); state="answer"; continue; }
+    if(state==="answer"){ if(t) answer.push(t); continue; }
+    if(/不少于\s*800|800\s*字|字数\s*不少于/.test(t)){ content.push(t); state="answer"; continue; }
+    if(t) content.push(t);
+  }
+  return {content:content.join("\n").trim(), answer:answer.join("\n").trim()};
+}
+
+function parseDocxData(blocks){
+  var sec=splitSections(blocks);
+  return {
+    singleChoice: parseChoice(sec.choice),
+    materials: parseMaterial(sec.material),
+    writing: parseWriting(sec.writing)
+  };
+}
+
+/* ---------------- 页面逻辑 ---------------- */
+function init(){
+  var sel=$("yearSel");
+  YEARS.forEach(function(y){
+    var o=document.createElement("option"); o.value=y; o.textContent=y; sel.appendChild(o);
+  });
+}
+
+async function startExam(){
+  var y=$("yearSel").value;
+  setStatus("正在加载并解析 " + y + " 的真题…", true);
+  try{
+    var data;
+    if(cache[y]){ data=cache[y]; }
+    else{
+      var resp = await fetch(DATA_DIR + "/" + fileOf(y));
+      if(!resp.ok) throw new Error("HTTP "+resp.status);
+      var buf = await resp.arrayBuffer();
+      var files = await unzip(buf);
+      var blocks = parseBlocks(files);
+      data = parseDocxData(blocks);
+      cache[y]=data;
+    }
+    current = {year:y, data:data};
+    renderExam();
+    $("submitBtn").classList.remove("hidden");
+    setStatus("", false);
+    window.scrollTo(0,0);
+  }catch(e){
+    console.error(e);
+    setStatus("加载失败："+e.message+"。请在本目录运行 python -m http.server 8000 后访问 http://localhost:8000/", false);
+    $("submitBtn").classList.add("hidden");
+  }
+}
+
+function setStatus(msg, spinning){
+  var el=$("statusTip");
+  el.innerHTML = (spinning?'<span class="spin"></span>':'') + (msg||'');
+}
+
+var userAnswers = {}; // qnum -> 选中的字母（单选）
+
+function renderExam(){
+  var d=current.data, html="";
+  // 一、单项选择题
+  html += '<div class="section-title">一、单项选择题（每题 2 分，共 '+d.singleChoice.length+' 题）</div>';
+  d.singleChoice.forEach(function(q){
+    html += choiceHTML(q);
+  });
+  // 二、材料分析题
+  html += '<div class="section-title">二、材料分析题（每题 14 分，共 '+d.materials.length+' 题）</div>';
+  d.materials.forEach(function(m){
+    html += materialHTML(m);
+  });
+  // 三、写作题
+  html += '<div class="section-title">三、写作题（50 分）</div>';
+  html += writingHTML(d.writing);
+  $("examBody").innerHTML = html;
+}
+
+function choiceHTML(q){
+  var h='<div class="q" id="cq-'+q.num+'"><div class="q-id">第 '+q.num+' 题（单选题）</div>';
+  h += '<div class="q-stem">'+esc(q.stem)+'</div>';
+  if(q.images && q.images.length){
+    q.images.forEach(function(im){ h += '<div class="q-img"><img src="'+im+'"></div>'; });
+  }
+  h += '<div class="opts">';
+  ["A","B","C","D"].forEach(function(k){
+    if(q.options[k]===undefined) return;
+    h += '<label><input type="radio" name="cq-'+q.num+'" value="'+k+'" onchange="onPick('+q.num+',this.value)"> <b>'+k+'.</b> <span class="opt-txt">'+esc(q.options[k])+'</span></label>';
+  });
+  h += '</div><div class="answer-box hidden" id="qa-'+q.num+'"></div></div>';
+  return h;
+}
+
+function materialHTML(m){
+  var h='<div class="material-box"><div class="m-head">第 '+m.num+' 题（材料分析题）</div>';
+  if(m.body) h += '<div class="q-stem">'+esc(m.body)+'</div>';
+  if(m.images && m.images.length){ m.images.forEach(function(im){ h += '<div class="q-img"><img src="'+im+'"></div>'; }); }
+  if(m.question) h += '<div class="q-stem" style="font-weight:600;color:#334155">'+esc(m.question)+'</div>';
+  h += '<details class="ans"><summary>查看【参考答案】</summary><div class="content">'+esc(m.answer||'（该题暂无参考答案）')+'</div></details>';
+  h += '</div>';
+  return h;
+}
+
+function writingHTML(w){
+  var h='<div class="material-box"><div class="m-head">第 33 题（写作题）</div>';
+  h += '<div class="q-stem">'+esc(w.content)+'</div>';
+  h += '<details class="ans"><summary>查看【参考范文】</summary><div class="content">'+esc(w.answer||'（该题暂无参考范文）')+'</div></details>';
+  h += '</div>';
+  return h;
+}
+
+function esc(s){
+  return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function onPick(num, val){ userAnswers[num]=val; }
+
+function submitExam(){
+  var d=current.data;
+  var answered=0, wrong=0, wrongList=[];
+  d.singleChoice.forEach(function(q){
+    var u = userAnswers[q.num] || "";
+    var correct = (q.answer||"").trim().toUpperCase();
+    var el = $("cq-"+q.num);
+    var ansBox = $("qa-"+q.num);
+    if(u){
+      answered++;
+      if(u.toUpperCase()===correct){
+        el.className="q q-right";
+      } else {
+        el.className="q q-wrong";
+        wrong++;
+        wrongList.push({num:q.num, stem:q.stem, user:u, correct:correct, options:q.options, analysis:q.analysis});
+      }
+    } else {
+      wrong++;
+      wrongList.push({num:q.num, stem:q.stem, user:"未作答", correct:correct, options:q.options, analysis:q.analysis});
+      el.className="q q-wrong";
+    }
+    // 显示正确答案与解析
+    ansBox.classList.remove("hidden");
+    ansBox.innerHTML = '<b>正确答案：</b>'+esc(correct||"无")+'　<b>你的答案：</b>'+esc(u||"未作答")+
+      (q.analysis?('<br><b>答案解析：</b>'+esc(q.analysis)):"");
+    // 标记选项颜色
+    var labels = el.querySelectorAll(".opts label");
+    for(var i=0;i<labels.length;i++){
+      var inp=labels[i].querySelector("input");
+      var v=inp.value;
+      if(v===correct) labels[i].classList.add("opt-right");
+      if(v===u.toUpperCase() && v!==correct) labels[i].classList.add("opt-user-err");
+    }
+  });
+  // 颜色警告
+  var level, color;
+  if(wrong>6){ level="红色警告"; color="red"; }
+  else if(wrong<2){ level="绿色（良好）"; color="green"; }
+  else { level="黄色警告"; color="yellow"; }
+  var banner='<div class="result-banner '+color+'">'+
+    '<span>本次判分：共 '+d.singleChoice.length+' 题，答对 '+(d.singleChoice.length-wrong)+' 题，错 '+wrong+' 题</span>'+
+    '<span>'+level+'</span></div>';
+  $("examBody").insertAdjacentHTML("afterbegin", banner);
+  $("submitBtn").classList.add("hidden");
+  // 弹窗展示错题
+  showWrongModal(wrongList, wrong);
+  window.scrollTo(0,0);
+}
+
+function showWrongModal(list, wrong){
+  var title=$("modalTitle");
+  if(wrong>6) title.innerHTML='🔴 错题 '+wrong+' 道（需重点复习）';
+  else if(wrong<2) title.innerHTML='🟢 错题 '+wrong+' 道（表现优秀）';
+  else title.innerHTML='🟡 错题 '+wrong+' 道（需加强）';
+  var html='';
+  if(!list.length){ html='<p class="center muted">本次全部答对，太棒了！🎉</p>'; }
+  list.forEach(function(w){
+    html += '<div class="wrong-item"><div class="wi-head">第 '+w.num+' 题</div>';
+    html += '<div class="q-stem">'+esc(w.stem)+'</div>';
+    if(w.options){
+      ["A","B","C","D"].forEach(function(k){
+        if(w.options[k]===undefined) return;
+        var mark = (k===w.correct) ? '<span class="wi-corr">✔ '+k+'</span>' : (k===w.user?'<span style="color:var(--err)">✘ '+k+'</span>':k);
+        html += '<div style="font-size:14px;margin:2px 0">'+mark+'、'+esc(w.options[k])+'</div>';
+      });
+    }
+    html += '<div style="margin-top:6px">你的答案：<b>'+(w.user||"未作答")+'</b>　正确答案：<span class="wi-corr"><b>'+esc(w.correct||"无")+'</b></span></div>';
+    html += '</div>';
+  });
+  $("modalBody").innerHTML=html;
+  $("modalMask").classList.remove("hidden");
+}
+
+function closeModal(){ $("modalMask").classList.add("hidden"); }
+$("modalMask").addEventListener("click", function(e){ if(e.target===this) closeModal(); });
+
+init();
+</script>
+</body>
+</html>
