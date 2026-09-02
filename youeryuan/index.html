@@ -70,7 +70,10 @@ details.ans .content{margin-top:8px;white-space:pre-wrap;word-wrap:break-word;fo
 <body>
 <header>
   <h1>📚 综合素质（幼儿园）历年真题</h1>
-  <div style="font-size:13px;opacity:.9">模拟考试 · 自动判分</div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div style="font-size:13px;opacity:.9">模拟考试 · 自动判分</div>
+    <a href="doc.html" class="btn btn-ghost" style="text-decoration:none;padding:8px 16px;font-size:14px">📄 查看文档</a>
+  </div>
 </header>
 
 <div class="container">
@@ -107,9 +110,9 @@ details.ans .content{margin-top:8px;white-space:pre-wrap;word-wrap:break-word;fo
 
 /* ---------------- 年份 ---------------- */
 var YEARS = [
-  "2016年上","2016年下","2017年上","2017年下","2018年上","2018年下",
-  "2019年上","2019年下","2020年下","2021年上","2021年下","2022年上",
-  "2022年下","2023年上","2023年下","2024年上","2024年下","2025年上","2026年上"
+  "2026年上","2025年上","2024年上","2024年下","2023年上","2023年下",
+  "2022年上","2022年下","2021年上","2021年下","2020年下","2019年上",
+  "2019年下","2018年上","2018年下","2017年上","2017年下","2016年上","2016年下"
 ];
 var DATA_DIR = "data";   // 数据目录（英文，避免中文路径在服务器报错）
 // 年份显示名 -> 英文文件名（如 "2016年上" -> "2016_h1.docx"）
