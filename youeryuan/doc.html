@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文档查看 · 综合素质（幼儿园）</title>
+<style>
+:root{
+  --main:#4a6cf7; --ok:#16a34a; --err:#dc2626; --warn:#f59e0b; --bg:#eef1f6;
+  --card:#ffffff; --line:#e2e8f0;
+}
+*{box-sizing:border-box;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif}
+body{margin:0;background:var(--bg);color:#1e293b;line-height:1.7}
+header{background:linear-gradient(135deg,#4a6cf7,#6a5bcd);color:#fff;padding:14px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+header h1{font-size:19px;margin:0;font-weight:700}
+.container{max-width:960px;margin:16px auto;padding:0 14px 60px}
+.card{background:var(--card);border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:18px 20px;margin-bottom:14px}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+select{padding:9px 12px;border-radius:8px;border:1px solid #cbd5e1;font-size:14px;background:#fff}
+.btn{padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;color:#fff;transition:opacity .15s;text-decoration:none;display:inline-block}
+.btn:hover{opacity:.88}
+.btn-main{background:var(--main)}
+.btn-ghost{background:#94a3b8}
+.tip{font-size:12.5px;color:#64748b}
+.doc-title{font-size:18px;font-weight:700;border-left:5px solid var(--main);padding:6px 12px;margin:0 0 14px;background:#eef2ff;border-radius:4px}
+.doc-block{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+.doc-block p{margin:6px 0;white-space:pre-wrap;word-wrap:break-word}
+.doc-block p.center{text-align:center}
+.doc-block img{max-width:100%;max-height:340px;border-radius:6px;border:1px solid var(--line);margin:6px 0}
+.spin{display:inline-block;width:16px;height:16px;border:3px solid #cbd5e1;border-top-color:var(--main);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>📄 文档查看 · 综合素质（幼儿园）</h1>
+  <a href="index.html" class="btn btn-ghost" style="padding:8px 16px;font-size:14px">← 返回考试</a>
+</header>
+
+<div class="container">
+  <div class="card">
+    <div class="toolbar">
+      <label>选择文档：</label>
+      <select id="docSel"></select>
+      <button class="btn btn-main" onclick="loadDoc()">查看</button>
+      <span class="tip" style="margin-left:4px">（data 目录下的 docx 文档，以网页方式展示）</span>
+    </div>
+    <div class="tip" style="margin-top:8px" id="statusTip"></div>
+  </div>
+  <div id="docBody"></div>
+</div>
+
+<script>
+/* ============================================================
+ * 文档查看器 - 将 data 目录下的 docx 文档以网页方式展示
+ * ============================================================ */
+var DATA_DIR = "data";
+var DOCS = [
+  "2016_h1.docx","2016_h2.docx","2017_h1.docx","2017_h2.docx",
+  "2018_h1.docx","2018_h2.docx","2019_h1.docx","2019_h2.docx",
+  "2020_h2.docx","2021_h1.docx","2021_h2.docx","2022_h1.docx",
+  "2022_h2.docx","2023_h1.docx","2023_h2.docx","2024_h1.docx",
+  "2024_h2.docx","2025_h1.docx","2026_h1.docx"
+];
+var cache = {};
+
+function $(id){return document.getElementById(id);}
+function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+/* ---------------- ZIP / DOCX 解析 ---------------- */
+function toBase64(u8){
+  var bin='', chunk=0x8000;
+  for(var i=0;i<u8.length;i+=chunk){
+    bin += String.fromCharCode.apply(null, u8.subarray(i, Math.min(i+chunk, u8.length)));
+  }
+  return btoa(bin);
+}
+
+async function unzip(buffer){
+  var u8 = new Uint8Array(buffer), dv = new DataView(buffer);
+  var eocd=-1;
+  for(var i=u8.length-22;i>=0;i--){
+    if(u8[i]===0x50 && u8[i+1]===0x4b && u8[i+2]===0x05 && u8[i+3]===0x06){eocd=i;break;}
+  }
+  if(eocd<0) throw new Error("不是有效的 docx(zip) 文件");
+  var count = dv.getUint16(eocd+10, true);
+  var off = dv.getUint32(eocd+16, true);
+  var entries = {};
+  for(var n=0;n<count;n++){
+    if(dv.getUint32(off,true)!==0x02014b50) break;
+    var compMethod = dv.getUint16(off+10,true);
+    var compSize = dv.getUint32(off+20,true);
+    var nameLen = dv.getUint16(off+28,true);
+    var extraLen = dv.getUint16(off+30,true);
+    var commentLen = dv.getUint16(off+32,true);
+    var localOff = dv.getUint32(off+42,true);
+    var name = new TextDecoder().decode(u8.slice(off+46, off+46+nameLen));
+    entries[name] = {method:compMethod, size:compSize, off:localOff};
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  var out={};
+  for(var name in entries){
+    var e=entries[name];
+    var lnameLen=dv.getUint16(e.off+26,true), lextraLen=dv.getUint16(e.off+28,true);
+    var dataStart = e.off+30+lnameLen+lextraLen;
+    var comp = u8.slice(dataStart, dataStart+e.size);
+    if(e.method===0){ out[name]=comp; }
+    else {
+      var ds = new DecompressionStream('deflate-raw');
+      var stream = new Blob([comp]).stream().pipeThrough(ds);
+      var ab = await new Response(stream).arrayBuffer();
+      out[name] = new Uint8Array(ab);
+    }
+  }
+  return out;
+}
+
+var NS_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+var NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main";
+var NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+function parseBlocks(files){
+  var xmlStr = new TextDecoder().decode(files["word/document.xml"]);
+  var doc = new DOMParser().parseFromString(xmlStr, "application/xml");
+  var rels = {};
+  try{
+    var relXml = new TextDecoder().decode(files["word/_rels/document.xml.rels"]);
+    var rp = new DOMParser().parseFromString(relXml, "application/xml");
+    var relsEl = rp.getElementsByTagNameNS("*","Relationship");
+    for(var i=0;i<relsEl.length;i++){
+      var id = relsEl[i].getAttribute("Id");
+      var target = relsEl[i].getAttribute("Target");
+      rels[id] = target;
+    }
+  }catch(e){}
+  function mimeOf(name){
+    if(/\.png$/i.test(name)) return "image/png";
+    if(/\.jpe?g$/i.test(name)) return "image/jpeg";
+    if(/\.gif$/i.test(name)) return "image/gif";
+    return "image/png";
+  }
+  var blocks=[];
+  var ps = doc.getElementsByTagNameNS(NS_W, "p");
+  for(var i=0;i<ps.length;i++){
+    var p=ps[i];
+    var ts = p.getElementsByTagNameNS(NS_W,"t");
+    var text="";
+    for(var j=0;j<ts.length;j++) text += ts[j].textContent;
+    var imgs=[];
+    var blips = p.getElementsByTagNameNS(NS_A,"blip");
+    for(var k=0;k<blips.length;k++){
+      var rid = blips[k].getAttributeNS(NS_R,"embed");
+      var target = rels[rid];
+      if(target){
+        var bytes = files["word/"+target];
+        if(bytes){
+          imgs.push("data:"+mimeOf(target)+";base64,"+toBase64(bytes));
+        }
+      }
+    }
+    var centered=false;
+    var pPr = p.getElementsByTagNameNS(NS_W,"pPr")[0];
+    if(pPr){
+      var jc = pPr.getElementsByTagNameNS(NS_W,"jc")[0];
+      centered = jc && jc.getAttributeNS(NS_W,"val")==="center";
+    }
+    blocks.push({text:text, images:imgs, centered:centered});
+  }
+  return blocks;
+}
+
+/* ---------------- 页面逻辑 ---------------- */
+function init(){
+  var sel=$("docSel");
+  DOCS.forEach(function(f){
+    var o=document.createElement("option"); o.value=f; o.textContent=f; sel.appendChild(o);
+  });
+}
+
+function setStatus(msg, spinning){
+  var el=$("statusTip");
+  el.innerHTML = (spinning?'<span class="spin"></span>':'') + (msg||'');
+}
+
+async function loadDoc(){
+  var f=$("docSel").value;
+  setStatus("正在加载并解析 " + f + " …", true);
+  try{
+    var blocks;
+    if(cache[f]){ blocks=cache[f]; }
+    else{
+      var resp = await fetch(DATA_DIR + "/" + f);
+      if(!resp.ok) throw new Error("HTTP "+resp.status);
+      var buf = await resp.arrayBuffer();
+      var files = await unzip(buf);
+      blocks = parseBlocks(files);
+      cache[f]=blocks;
+    }
+    renderDoc(f, blocks);
+    setStatus("", false);
+    window.scrollTo(0,0);
+  }catch(e){
+    console.error(e);
+    setStatus("加载失败："+e.message+"。请在本目录运行 python -m http.server 8000 后访问 http://localhost:8000/", false);
+  }
+}
+
+function renderDoc(f, blocks){
+  var html='<div class="doc-title">📄 '+esc(f)+'</div>';
+  blocks.forEach(function(b){
+    var cls = b.centered ? ' class="center"' : '';
+    html += '<div class="doc-block">';
+    if(b.text) html += '<p'+cls+'>'+esc(b.text)+'</p>';
+    b.images.forEach(function(im){ html += '<img src="'+im+'">'; });
+    html += '</div>';
+  });
+  $("docBody").innerHTML = html;
+}
+
+init();
+</script>
+</body>
+</html>
