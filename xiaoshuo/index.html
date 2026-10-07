@@ -43,6 +43,7 @@
       <span id="cacheInfo" class="muted"></span>
     </label>
     <button type="button" id="clearCache" class="mini">清空缓存</button>
+    <button type="button" id="warm" class="mini" title="把这 189 本一次下载到本机，之后搜索就不用再联网（第一次要等一会儿）">缓存整个书库</button>
     <button type="button" id="pickDir" class="mini">搜索本机文件夹（不上传）</button>
     <input type="file" id="dirInput" webkitdirectory directory multiple hidden>
   </div>
@@ -60,6 +61,7 @@
 <div class="tip" id="tip"></div>
 
 <script src="js/core-util.js"></script>
+<script src="js/idb.js"></script>
 <script src="js/common.js"></script>
 <script src="js/app.js"></script>
 </body>

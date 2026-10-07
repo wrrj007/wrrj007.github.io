@@ -1,142 +1,40 @@
 /* ============================================================================
- * common.js —— 主线程公用：本机缓存（IndexedDB）、取文件、高亮、防误触点击
+ * common.js —— 主线程公用：本机缓存、取文件、高亮、防误触点击
+ * 缓存实体在 js/idb.js（Worker 也要用），这里只做转发 + 存储配额自动伸缩。
  * ==========================================================================*/
 (function (global) {
   'use strict';
 
   var C = {};
-  var DB_NAME = 'txtsearch';
-  var DB_VER = 2;
 
-  /* ===================== IndexedDB 本机缓存 ===================== */
-  var _db = null;
-  function openDB() {
-    if (_db) return Promise.resolve(_db);
-    return new Promise(function (res, rej) {
-      var req;
-      try { req = indexedDB.open(DB_NAME, DB_VER); }
-      catch (e) { rej(e); return; }
-      req.onupgradeneeded = function () {
-        var db = req.result;
-        if (!db.objectStoreNames.contains('data')) db.createObjectStore('data', { keyPath: 'k' });
-        if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'k' });
-      };
-      req.onsuccess = function () { _db = req.result; res(_db); };
-      req.onerror = function () { rej(req.error); };
-    });
-  }
-  function tx(db, stores, mode) { return db.transaction(stores, mode); }
-  function wrap(request) {
-    return new Promise(function (res, rej) {
-      request.onsuccess = function () { res(request.result); };
-      request.onerror = function () { rej(request.error); };
-    });
-  }
+  /* ===================== 本机缓存：转发到 IDB ===================== */
+  C.cacheGet = function (path, size) { return IDB.get(path, size); };
+  C.cachePut = function (path, size, bytes) { return IDB.put(path, size, bytes); };
+  C.cacheStats = function () { return IDB.stats(); };
+  C.cacheIndex = function () { return IDB.index(); };
+  C.cacheEvict = function (force) { return IDB.evict(force); };
+  C.cacheClear = function () { return IDB.clear(); };
 
-  C.cacheEnabled = true;
-  C.cacheBudget = 400 * 1024 * 1024;      // 默认最多占 400 MB 本机空间
+  Object.defineProperty(C, 'cacheEnabled', {
+    get: function () { return IDB.enabled; },
+    set: function (v) { IDB.enabled = !!v; }
+  });
+  Object.defineProperty(C, 'cacheBudget', {
+    get: function () { return IDB.budget; },
+    set: function (v) { IDB.budget = v; }
+  });
 
-  C.cacheGet = function (path, size) {
-    if (!C.cacheEnabled) return Promise.resolve(null);
-    return openDB().then(function (db) {
-      var t = tx(db, ['meta', 'data'], 'readonly');
-      return Promise.all([
-        wrap(t.objectStore('meta').get(path)),
-        wrap(t.objectStore('data').get(path))
-      ]).then(function (r) {
-        var meta = r[0], rec = r[1];
-        if (!meta || !rec || (size && meta.size !== size)) return null;
-        meta.ts = Date.now();
-        try { tx(db, ['meta'], 'readwrite').objectStore('meta').put(meta); } catch (e) {}
-        return new Uint8Array(rec.data);
-      });
-    }).catch(function () { return null; });
-  };
-
-  C.cachePut = function (path, size, bytes) {
-    if (!C.cacheEnabled || !size) return Promise.resolve();
-    var buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-    return openDB().then(function (db) {
-      var t = tx(db, ['meta', 'data'], 'readwrite');
-      t.objectStore('meta').put({ k: path, size: size, ts: Date.now() });
-      t.objectStore('data').put({ k: path, data: buf });
-      return new Promise(function (res) { t.oncomplete = res; t.onerror = function () { res(); }; t.onabort = function () { res(); }; });
-    }).then(function () { return C.cacheEvict(); }).catch(function () {});
-  };
-
-  C.cacheStats = function () {
-    return openDB().then(function (db) {
-      var t = tx(db, ['meta'], 'readonly');
-      var store = t.objectStore('meta');
-      var total = 0, count = 0;
-      return new Promise(function (res) {
-        var cur = store.openCursor();
-        cur.onsuccess = function () {
-          var c = cur.result;
-          if (!c) { res({ bytes: total, count: count }); return; }
-          total += c.value.size || 0; count++;
-          c.continue();
-        };
-        cur.onerror = function () { res({ bytes: 0, count: 0 }); };
-      });
-    }).catch(function () { return { bytes: 0, count: 0 }; });
-  };
-
-  /* 一次读出所有缓存条目的 path->size，便于预估本次要下载多少 */
-  C.cacheIndex = function () {
-    var map = {};
-    if (!C.cacheEnabled) return Promise.resolve(map);
-    return openDB().then(function (db) {
-      var t = tx(db, ['meta'], 'readonly');
-      return new Promise(function (res) {
-        var cur = t.objectStore('meta').openCursor();
-        cur.onsuccess = function () {
-          var c = cur.result;
-          if (!c) { res(map); return; }
-          map[c.value.k] = c.value.size || 0;
-          c.continue();
-        };
-        cur.onerror = function () { res(map); };
-      });
-    }).catch(function () { return map; });
-  };
-
-  C.cacheEvict = function () {    return openDB().then(function (db) {
-      var t = tx(db, ['meta'], 'readonly');
-      var rows = [];
-      return new Promise(function (res) {
-        var cur = t.objectStore('meta').openCursor();
-        cur.onsuccess = function () {
-          var c = cur.result;
-          if (!c) { res(rows); return; }
-          rows.push({ k: c.value.k, size: c.value.size || 0, ts: c.value.ts || 0 });
-          c.continue();
-        };
-        cur.onerror = function () { res(rows); };
-      }).then(function (rows) {
-        var total = rows.reduce(function (s, r) { return s + r.size; }, 0);
-        if (total <= C.cacheBudget) return 0;
-        rows.sort(function (a, b) { return a.ts - b.ts; });
-        var del = [];
-        for (var i = 0; i < rows.length && total > C.cacheBudget; i++) {
-          total -= rows[i].size; del.push(rows[i].k);
-        }
-        if (!del.length) return 0;
-        var t2 = tx(db, ['meta', 'data'], 'readwrite');
-        var ms = t2.objectStore('meta'), ds = t2.objectStore('data');
-        del.forEach(function (k) { ms.delete(k); ds.delete(k); });
-        return new Promise(function (r) { t2.oncomplete = function () { r(del.length); }; t2.onerror = function () { r(0); }; });
-      });
-    }).catch(function () { return 0; });
-  };
-
-  C.cacheClear = function () {
-    return openDB().then(function (db) {
-      var t = tx(db, ['meta', 'data'], 'readwrite');
-      t.objectStore('meta').clear();
-      t.objectStore('data').clear();
-      return new Promise(function (r) { t.oncomplete = function () { r(true); }; t.onerror = function () { r(false); }; });
-    }).catch(function () { return false; });
+  /* 按浏览器给的配额自动定缓存上限：目标是放得下整个语料，
+     但不超过浏览器实际可用空间的 60%，也不超过 1.5 GB。 */
+  C.tuneBudget = function (corpusBytes) {
+    return C.storageEstimate().then(function (est) {
+      var MAX = 1500 * 1024 * 1024, MIN = 200 * 1024 * 1024, FLOOR = 300 * 1024 * 1024;
+      var want = Math.max(corpusBytes ? corpusBytes * 1.15 : 0, FLOOR);
+      var hard = MAX;
+      if (est && est.quota) hard = Math.min(hard, Math.floor(est.quota * 0.6));
+      IDB.budget = Math.max(MIN, Math.min(want, hard));
+      return { budget: IDB.budget, quota: est && est.quota, usage: est && est.usage };
+    }).catch(function () { return { budget: IDB.budget }; });
   };
 
   C.askPersist = function () {
@@ -169,7 +67,9 @@
       return fetch(url, { cache: 'default' }).then(function (res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var total = parseInt(res.headers.get('content-length') || '0', 10) || size || 0;
-        if (!res.body || !res.body.getReader) return res.arrayBuffer().then(function (b) { return new Uint8Array(b); });
+        if (!res.body || !res.body.getReader) {
+          return res.arrayBuffer().then(function (b) { return new Uint8Array(b); });
+        }
         var reader = res.body.getReader();
         var chunks = [], got = 0;
         function step() {
