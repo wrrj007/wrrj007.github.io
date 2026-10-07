@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>阅读原文</title>
+<link rel="stylesheet" href="js/style.css">
+</head>
+<body class="reader">
+
+<header>
+  <div class="l1">
+    <span class="title" id="title">加载中…</span>
+    <span class="pos" id="pos">—</span>
+  </div>
+  <div class="l2">
+    <input id="jump" type="number" inputmode="numeric" min="1" placeholder="行号" title="输入行号后点跳转">
+    <button class="primary" id="jumpBtn">跳转</button>
+    <button id="prevM">↑ 上一处</button>
+    <button id="nextM">↓ 下一处</button>
+    <span class="grow"></span>
+    <button id="fDown" title="缩小字号">A-</button>
+    <button id="fUp" title="放大字号">A+</button>
+    <button id="back" title="关闭或返回">← 搜索</button>
+  </div>
+  <div id="qbar" hidden>
+    <span>关键词 <b id="qtext"></b></span>
+    <span id="qinfo"></span>
+    <input id="q2" placeholder="改成别的词，回车重新定位">
+  </div>
+</header>
+
+<div id="view"><div id="inner"></div></div>
+
+<script src="js/core-util.js"></script>
+<script src="js/common.js"></script>
+<script src="js/reader.js"></script>
+</body>
+</html>

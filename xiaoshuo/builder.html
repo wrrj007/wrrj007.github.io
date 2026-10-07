@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>生成文件清单 · manifest.js</title>
+<link rel="stylesheet" href="js/style.css">
+<style>
+  body{padding:0 0 60px}
+  .wrap{max-width:900px; margin:0 auto; padding:16px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px}
+  .drop{
+    border:2px dashed var(--line); border-radius:12px; padding:28px 16px; text-align:center;
+    color:var(--muted); cursor:pointer; user-select:none;
+  }
+  .drop.hot{border-color:var(--accent); background:var(--tap); color:var(--fg)}
+  h2{font-size:16px; margin:0 0 10px}
+  h3{font-size:14px; margin:18px 0 8px; color:var(--muted)}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  td,th{padding:6px 8px; border-bottom:1px solid var(--line); text-align:left; word-break:break-all}
+  td.n,th.n{text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums}
+  .warn{color:#b45309; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 10px; margin-top:8px; font-size:13px}
+  @media (prefers-color-scheme: dark){ .warn{background:#3a2f10; border-color:#6b5518; color:#f5d98b} }
+  .bad{color:#b91c1c}
+  .ok{color:#047857}
+  code{background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:2px 6px}
+  input[type=text]{padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--fg); font:inherit}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  ol{line-height:1.9; padding-left:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card">
+    <h2>① 选择 TXT 所在的文件夹</h2>
+    <p class="muted" style="font-size:13px;margin-top:0">
+      选 <code>娱乐</code> 这个文件夹即可（会自动包含所有子目录）。
+      只读取文件名和大小，<b>不会读取内容、不会上传任何数据</b>。
+    </p>
+    <div class="drop" id="drop">
+      <div style="font-size:15px">点这里选择文件夹，或把文件夹拖进来</div>
+      <div style="font-size:12px;margin-top:6px">Chrome / Edge / Firefox 均可</div>
+    </div>
+    <input type="file" id="dir" webkitdirectory directory multiple hidden>
+  </div>
+
+  <div class="card">
+    <h2>② 确认位置</h2>
+    <div class="row">
+      <span>网站根目录下，TXT 放在：</span>
+      <input type="text" id="root" value="娱乐" style="width:180px">
+      <span class="muted" style="font-size:12px">（即 <code>index.html</code> 同级的哪个文件夹里）</span>
+    </div>
+    <div id="summary" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>③ 生成 manifest.js</h2>
+    <div class="row">
+      <button class="primary" id="gen" disabled>生成并下载 manifest.js</button>
+      <button id="copy" disabled>复制内容</button>
+      <span id="genmsg" class="muted" style="font-size:13px"></span>
+    </div>
+    <h3>接下来做什么</h3>
+    <ol style="font-size:13px">
+      <li>把下载到的 <code>manifest.js</code> 放到网站根目录（和 <code>index.html</code> 同一层）。</li>
+      <li>把 TXT 文件夹（默认 <code>娱乐/</code>）连同 <code>index.html</code>、<code>reader.html</code>、<code>js/</code> 一起 push 到仓库。</li>
+      <li>仓库 Settings → Pages 选择分支和目录，等一分钟即可访问。</li>
+      <li>以后新增/删除 TXT，回到本页重新生成一次 <code>manifest.js</code> 即可。</li>
+    </ol>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var files = [];            // {path, size}
+
+  function human(b) {
+    if (b >= 1073741824) return (b / 1073741824).toFixed(2) + ' GB';
+    if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
+    if (b >= 1024) return (b / 1024).toFixed(0) + ' KB';
+    return b + ' B';
+  }
+
+  /* ---------- 收集（去掉最外层目录名） ---------- */
+  function add(rel, size) {
+    if (!/\.txt$/i.test(rel)) return;
+    var p = rel.split('/');
+    if (p.length > 1) p = p.slice(1);            // 去掉所选文件夹本身
+    files.push({ path: p.join('/'), size: size });
+  }
+
+  function acceptFileList(list) {
+    files = [];
+    for (var i = 0; i < list.length; i++) {
+      var f = list[i];
+      add(f.webkitRelativePath || f.name, f.size);
+    }
+    // 顶层文件夹名 -> 默认 root
+    var first = list[0] && (list[0].webkitRelativePath || '');
+    if (first.indexOf('/') > 0) $('#root').value = first.split('/')[0];
+    render();
+  }
+
+  /* ---------- 拖拽整个文件夹 ---------- */
+  function walk(entry, prefix, done) {
+    if (entry.isFile) {
+      entry.file(function (f) { add(prefix + entry.name, f.size); done(); }, done);
+      return;
+    }
+    var reader = entry.createReader();
+    var all = [];
+    (function read() {
+      reader.readEntries(function (ents) {
+        if (!ents.length) {
+          var i = 0;
+          (function next() {
+            if (i >= all.length) { done(); return; }
+            walk(all[i++], prefix + entry.name + '/', next);
+          })();
+          return;
+        }
+        all = all.concat(Array.prototype.slice.call(ents));
+        read();
+      }, done);
+    })();
+  }
+
+  function acceptDrop(dt) {
+    var items = dt.items, entries = [], i;
+    for (i = 0; i < items.length; i++) {
+      var e = items[i].webkitGetAsEntry && items[i].webkitGetAsEntry();
+      if (e) entries.push(e);
+    }
+    if (!entries.length) return false;
+    files = [];
+    var i2 = 0;
+    (function next() {
+      if (i2 >= entries.length) { render(); return; }
+      walk(entries[i2++], '', next);
+    })();
+    return true;
+  }
+
+  /* ---------- 渲染摘要 ---------- */
+  function render() {
+    files.sort(function (a, b) { return a.path < b.path ? -1 : 1; });
+    var total = 0, big = [], huge = [], dirs = {};
+    files.forEach(function (f) {
+      total += f.size;
+      if (f.size > 100 * 1048576) huge.push(f);
+      else if (f.size > 50 * 1048576) big.push(f);
+      var d = f.path.indexOf('/') >= 0 ? f.path.split('/')[0] : '(根目录)';
+      dirs[d] = dirs[d] || { n: 0, b: 0 };
+      dirs[d].n++; dirs[d].b += f.size;
+    });
+
+    var h = '';
+    if (!files.length) {
+      h = '<div class="muted">还没有选择文件</div>';
+    } else {
+      h += '<div style="font-size:15px"><b>' + files.length + '</b> 个 TXT，合计 <b>' +
+           human(total) + '</b></div>';
+      h += '<table style="margin-top:10px"><tr><th>子目录</th><th class="n">本数</th><th class="n">大小</th></tr>';
+      Object.keys(dirs).sort().forEach(function (d) {
+        h += '<tr><td>' + esc(d) + '</td><td class="n">' + dirs[d].n + '</td><td class="n">' +
+             human(dirs[d].b) + '</td></tr>';
+      });
+      h += '</table>';
+
+      if (total > 900 * 1048576) {
+        h += '<div class="warn">合计已接近或超过 <b>1 GB</b>：GitHub Pages 站点的发布上限是 1 GB，' +
+             '建议只发布一部分子目录，或删掉不必要的大文件。</div>';
+      }
+      if (huge.length) {
+        h += '<div class="warn bad">有 ' + huge.length + ' 个文件超过 <b>100 MB</b>，GitHub 会直接拒绝：<br>' +
+             huge.slice(0, 5).map(function (f) { return esc(f.path) + '（' + human(f.size) + '）'; }).join('<br>') + '</div>';
+      }
+      if (big.length) {
+        h += '<div class="warn">有 ' + big.length + ' 个文件超过 50 MB（GitHub 会提示警告，但仍可上传）：<br>' +
+             big.slice(0, 5).map(function (f) { return esc(f.path) + '（' + human(f.size) + '）'; }).join('<br>') + '</div>';
+      }
+    }
+    $('#summary').innerHTML = h;
+    $('#gen').disabled = !files.length;
+    $('#copy').disabled = !files.length;
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  /* ---------- 生成 ---------- */
+  function manifestText() {
+    var root = $('#root').value.trim().replace(/^\/+|\/+$/g, '');
+    var lines = [];
+    lines.push('/* 由 builder.html 生成，请与 index.html 放在同一层。');
+    lines.push('   共 ' + files.length + ' 个 TXT。生成时间 ' + new Date().toLocaleString() + ' */');
+    lines.push('window.__TXT_MANIFEST = {');
+    lines.push('  "generated": ' + JSON.stringify(new Date().toISOString()) + ',');
+    lines.push('  "root": ' + JSON.stringify(root) + ',');
+    lines.push('  "files": [');
+    files.forEach(function (f, i) {
+      lines.push('    [' + JSON.stringify(f.path) + ', ' + f.size + ']' + (i === files.length - 1 ? '' : ','));
+    });
+    lines.push('  ]');
+    lines.push('};');
+    return lines.join('\n');
+  }
+
+  $('#gen').addEventListener('click', function () {
+    var text = manifestText();
+    var blob = new Blob([text], { type: 'application/javascript;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'manifest.js';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    $('#genmsg').textContent = '已生成（' + human(blob.size) + '），把 manifest.js 放到网站根目录即可';
+  });
+
+  $('#copy').addEventListener('click', function () {
+    var text = manifestText();
+    var done = function () { $('#genmsg').textContent = '已复制到剪贴板'; };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    else fallback(text, done);
+  });
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { $('#genmsg').textContent = '复制失败，请用「生成并下载」'; }
+    ta.remove();
+  }
+
+  /* ---------- 事件 ---------- */
+  $('#drop').addEventListener('click', function () { $('#dir').click(); });
+  $('#dir').addEventListener('change', function () { if (this.files && this.files.length) acceptFileList(this.files); });
+  ['dragenter', 'dragover'].forEach(function (t) {
+    $('#drop').addEventListener(t, function (e) { e.preventDefault(); $('#drop').classList.add('hot'); });
+  });
+  ['dragleave', 'drop'].forEach(function (t) {
+    $('#drop').addEventListener(t, function (e) { e.preventDefault(); $('#drop').classList.remove('hot'); });
+  });
+  $('#drop').addEventListener('drop', function (e) {
+    if (e.dataTransfer && acceptDrop(e.dataTransfer)) return;
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) acceptFileList(e.dataTransfer.files);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+/* GitHub Pages：这个文件让 Pages 跳过 Jekyll 处理。
+   本目录有 600+ MB 的 TXT，Jekyll 会尝试处理它们（慢且可能失败）。
+   有了 .nojekyll，Pages 直接按静态文件原样发布。 */

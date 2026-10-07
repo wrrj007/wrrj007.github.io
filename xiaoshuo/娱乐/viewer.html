@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TXT 全文搜索</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --fg:#1f2328; --muted:#6b7280;
+    --accent:#2563eb; --mark:#ffe58f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.6 system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--fg)}
+  header{position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--line);padding:14px 18px}
+  h1{margin:0 0 10px;font-size:18px;display:flex;align-items:baseline;gap:8px}
+  h1 small{font-size:12px;font-weight:400;color:var(--muted)}
+  form{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  input[type=search]{flex:1 1 260px;min-width:200px;padding:8px 12px;border:1px solid var(--line);
+       border-radius:8px;font-size:14px;font-family:inherit}
+  input[type=search]:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+  label{display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-size:13px;user-select:none;cursor:pointer}
+  button{padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;
+       font-size:14px;font-family:inherit}
+  button:hover{background:#f3f4f6}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{background:#1d4ed8}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  #status{padding:8px 18px;color:var(--muted);font-size:13px}
+  main{padding:0 18px 60px}
+  details.file{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
+  details.file>summary{cursor:pointer;padding:10px 14px;display:flex;gap:10px;align-items:center;
+       font-weight:600;list-style:none}
+  details.file>summary::-webkit-details-marker{display:none}
+  details.file>summary::before{content:"▶";font-size:10px;color:var(--muted);transition:transform .15s}
+  details.file[open]>summary::before{transform:rotate(90deg)}
+  .fname{flex:1;word-break:break-all;font-weight:600}
+  .badge{font-weight:400;font-size:12px;color:var(--muted);background:var(--bg);border-radius:20px;padding:2px 10px;white-space:nowrap}
+  .openall{font-weight:400;font-size:12px;color:var(--accent);text-decoration:none;white-space:nowrap}
+  .openall:hover{text-decoration:underline}
+  .hits{border-top:1px solid var(--line);max-height:420px;overflow:auto}
+  .hit{display:flex;gap:10px;padding:5px 14px;border-bottom:1px solid #f1f3f5;cursor:pointer;
+       font-family:ui-monospace,Consolas,monospace;font-size:13px}
+  .hit:last-child{border-bottom:0}
+  .hit:hover{background:#eff6ff}
+  .hit .ln{flex:0 0 56px;text-align:right;color:#9aa4b2;user-select:none}
+  .hit .txt{flex:1;white-space:pre-wrap;word-break:break-word}
+  mark{background:var(--mark);padding:0 1px;border-radius:2px}
+  .empty{color:var(--muted);padding:30px;text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📄 TXT 全文搜索 <small id="fileCount"></small></h1>
+  <form id="searchForm">
+    <input id="kw" type="search" placeholder="输入要搜索的文字，回车开始…" autocomplete="off">
+    <label><input type="checkbox" id="caseSensitive">区分大小写</label>
+    <label><input type="checkbox" id="wholeWord">全词匹配</label>
+    <label><input type="checkbox" id="useRegex">正则</label>
+    <button class="primary" type="submit" id="searchBtn">搜索</button>
+    <button type="button" id="pickDir">选择本地文件夹</button>
+    <button type="button" id="toggleAll">全部折叠</button>
+  </form>
+  <div id="status"></div>
+</header>
+
+<main id="results"></main>
+
+<script>
+/* ============================================================
+ *  配置
+ * ============================================================ */
+const CFG = {
+  dir: './txt/',                       // TXT 所在目录
+  manifest: './txt/manifest.json',     // 文件清单
+  concurrency: 6                       // 并发读取数
+};
+
+const $ = s => document.querySelector(s);
+const resultsEl = $('#results');
+
+const state = {
+  entries: [],     // [{ name, url }] 或 [{ name, file: FileSystemFileHandle }]
+  busy: false,
+  keyword: ''
+};
+
+/* ============================================================
+ *  工具函数
+ * ============================================================ */
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** 构建带 g 标志的正则 */
+function buildMatcher(keyword, opt = {}) {
+  let src = opt.regex ? keyword : escapeRegExp(keyword);
+  // 全词匹配：只对纯英文/数字/空格的关键词加词边界（\b 对中文无效）
+  if (opt.wholeWord && !opt.regex && /^[\w\s]+$/.test(keyword)) {
+    src = `\\b(?:${src})\\b`;
+  }
+  const flags = 'g' + (opt.caseSensitive ? '' : 'i');
+  return new RegExp(src, flags);
+}
+
+/** 安全高亮：返回 DocumentFragment，避免 innerHTML 注入 */
+function highlight(text, matcher) {
+  const frag = document.createDocumentFragment();
+  const re = new RegExp(matcher.source, matcher.flags.includes('g') ? matcher.flags : matcher.flags + 'g');
+  let last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    if (m[0] === '') { re.lastIndex++; continue; }   // 防止零宽匹配死循环
+    if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+    const mark = document.createElement('mark');
+    mark.textContent = m[0];
+    frag.appendChild(mark);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+  return frag;
+}
+
+/** 解码：优先 UTF-8，出现乱码则尝试 GBK */
+function decodeBuffer(buf) {
+  let text = new TextDecoder('utf-8').decode(buf);
+  if (text.includes('\uFFFD')) {
+    try { text = new TextDecoder('gbk').decode(buf); } catch (_) {}
+  }
+  return text.replace(/^\uFEFF/, '');
+}
+
+/** 并发池 */
+async function runPool(items, limit, worker) {
+  let i = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      await worker(items[idx], idx);
+    }
+  });
+  await Promise.all(runners);
+}
+
+function setStatus(msg) { $('#status').textContent = msg; }
+
+/* ============================================================
+ *  1. 获取文件清单（三种方式，按优先级尝试）
+ * ============================================================ */
+
+/** 方式 A：读取 txt/manifest.json */
+async function loadManifest() {
+  const res = await fetch(CFG.manifest, { cache: 'no-store' });
+  if (!res.ok) throw new Error('manifest 不存在');
+  const data = await res.json();
+  const list = Array.isArray(data) ? data : (data.files || []);
+  if (!list.length) throw new Error('manifest 为空');
+
+  const base = new URL(CFG.dir, location.href);
+  return list.map(item => {
+    const raw = typeof item === 'string' ? item : item.name;
+    const url = /^(https?:|\/|\.\/|\.\.\/)/.test(raw)
+      ? new URL(raw, location.href).href
+      : new URL(raw.replace(/^\.\//, ''), base).href;
+    return { name: raw.split('/').pop(), url };
+  });
+}
+
+/** 方式 B：解析静态服务器的目录索引页 */
+async function loadDirIndex() {
+  const res = await fetch(CFG.dir, { cache: 'no-store' });
+  if (!res.ok) throw new Error('目录索引不可用');
+  const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+  const base = new URL(CFG.dir, location.href);
+  const entries = [];
+  doc.querySelectorAll('a[href]').forEach(a => {
+    const href = a.getAttribute('href');
+    if (!/\.txt($|\?)/i.test(href)) return;
+    const url = new URL(href, base).href;
+    entries.push({ name: decodeURIComponent(url.split('/').pop().split('?')[0]), url });
+  });
+  if (!entries.length) throw new Error('索引页中没有 TXT 链接');
+  return entries;
+}
+
+/* ============================================================
+ *  2. 读取文本
+ * ============================================================ */
+async function readEntryText(entry) {
+  let buf;
+  if (entry.file) {                      // File System Access API
+    const f = await entry.file.getFile();
+    buf = await f.arrayBuffer();
+  } else {                               // HTTP 方式
+    const res = await fetch(entry.url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    buf = await res.arrayBuffer();
+  }
+  return decodeBuffer(buf);
+}
+
+/* ============================================================
+ *  3. 搜索
+ * ============================================================ */
+function searchInText(text, matcher) {
+  const lines = text.split(/\r\n|\r|\n/);
+  const hits = [];
+  let total = 0;
+  for (let i = 0; i < lines.length; i++) {
+    matcher.lastIndex = 0;
+    const m = lines[i].match(matcher);
+    if (m && m.length) {
+      total += m.length;
+      hits.push({ lineNo: i + 1, text: lines[i], count: m.length });
+    }
+  }
+  return { total, hits, lineCount: lines.length };
+}
+
+async function doSearch(keyword) {
+  if (state.busy) return;
+  keyword = keyword.trim();
+  if (!keyword) { setStatus('请输入要搜索的文字'); return; }
+  if (!state.entries.length) { setStatus('没有可搜索的文件，请先生成 manifest 或选择本地文件夹'); return; }
+
+  const opts = {
+    caseSensitive: $('#caseSensitive').checked,
+    wholeWord: $('#wholeWord').checked,
+    regex: $('#useRegex').checked
+  };
+
+  let matcher;
+  try { matcher = buildMatcher(keyword, opts); }
+  catch (e) { setStatus('正则表达式无效：' + e.message); return; }
+
+  state.busy = true;
+  $('#searchBtn').disabled = true;
+  resultsEl.innerHTML = '';
+  state.keyword = keyword;
+
+  const t0 = performance.now();
+  const results = [];
+  let done = 0;
+  const total = state.entries.length;
+
+  await runPool(state.entries, CFG.concurrency, async entry => {
+    try {
+      const text = await readEntryText(entry);
+      const r = searchInText(text, matcher);
+      if (r.hits.length) results.push({ entry, ...r });
+    } catch (err) {
+      console.warn('读取失败：', entry.name, err);
+    } finally {
+      done++;
+      if (done % 3 === 0 || done === total) setStatus(`搜索中… ${done}/${total}`);
+    }
+  });
+
+  // 按匹配总数降序排列
+  results.sort((a, b) => b.total - a.total || a.entry.name.localeCompare(b.entry.name, 'zh'));
+
+  renderResults(results, keyword, matcher);
+
+  const ms = Math.round(performance.now() - t0);
+  const totalHits = results.reduce((s, r) => s + r.total, 0);
+  setStatus(`完成：在 ${results.length} 个文件中找到 ${totalHits} 处匹配，用时 ${ms} ms`);
+
+  state.busy = false;
+  $('#searchBtn').disabled = false;
+}
+
+/* ============================================================
+ *  4. 渲染结果
+ * ============================================================ */
+function renderResults(results, keyword, matcher) {
+  resultsEl.innerHTML = '';
+  if (!results.length) {
+    const p = document.createElement('div');
+    p.className = 'empty';
+    p.textContent = `未找到包含「${keyword}」的内容`;
+    resultsEl.appendChild(p);
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  results.forEach((r, idx) => frag.appendChild(buildFileBlock(r, keyword, matcher, idx)));
+  resultsEl.appendChild(frag);
+}
+
+function buildFileBlock(r, keyword, matcher, idx) {
+  const details = document.createElement('details');
+  details.className = 'file';
+  details.open = idx < 3;                    // 前 3 个文件默认展开
+
+  const summary = document.createElement('summary');
+
+  const nameEl = document.createElement('span');
+  nameEl.className = 'fname';
+  nameEl.textContent = r.entry.name;
+
+  const badge = document.createElement('span');
+  badge.className = 'badge';
+  badge.textContent = `${r.total} 处 / ${r.hits.length} 行`;
+
+  const openAll = document.createElement('a');
+  openAll.className = 'openall';
+  openAll.href = '#';
+  openAll.textContent = '在新页打开 ↗';
+  openAll.addEventListener('click', ev => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    openViewer(r.entry, r.hits[0].lineNo, keyword);
+  });
+
+  summary.append(nameEl, badge, openAll);
+  details.appendChild(summary);
+
+  const hitsBox = document.createElement('div');
+  hitsBox.className = 'hits';
+  r.hits.forEach(h => hitsBox.appendChild(buildHitRow(r.entry, h, matcher, keyword)));
+  details.appendChild(hitsBox);
+
+  return details;
+}
+
+function buildHitRow(entry, hit, matcher, keyword) {
+  const row = document.createElement('div');
+  row.className = 'hit';
+  row.title = '点击：在新页面打开该文件并定位到这一行';
+
+  const ln = document.createElement('span');
+  ln.className = 'ln';
+  ln.textContent = hit.lineNo;
+
+  const tx = document.createElement('span');
+  tx.className = 'txt';
+  tx.appendChild(highlight(hit.text, matcher));
+
+  row.append(ln, tx);
+  row.addEventListener('click', () => openViewer(entry, hit.lineNo, keyword));
+  return row;
+}
+
+/* ============================================================
+ *  5. 打开新页面
+ * ============================================================ */
+function openViewer(entry, lineNo, keyword) {
+  const params = new URLSearchParams();
+  params.set('line', lineNo);
+  params.set('q', keyword);
+  params.set('name', entry.name);
+
+  if (entry.url) {
+    params.set('file', entry.url);
+    window.open('viewer.html?' + params.toString(), '_blank');
+  } else if (entry.file) {
+    // 本地文件夹模式：转成 blob URL 传给新页面
+    // 注意：原页面关闭后 blob URL 失效
+    entry.file.getFile().then(f => {
+      params.set('src', URL.createObjectURL(f));
+      window.open('viewer.html?' + params.toString(), '_blank');
+    });
+  }
+}
+
+/* ============================================================
+ *  6. 本地文件夹（File System Access API，Chrome/Edge）
+ * ============================================================ */
+async function collectTxt(dirHandle, prefix, out) {
+  for await (const [name, handle] of dirHandle.entries()) {
+    if (handle.kind === 'file') {
+      if (/\.txt$/i.test(name)) out.push({ name: prefix + name, file: handle });
+    } else if (handle.kind === 'directory') {
+      await collectTxt(handle, prefix + name + '/', out);
+    }
+  }
+}
+
+async function pickDirectory() {
+  if (!('showDirectoryPicker' in window)) {
+    alert('当前浏览器不支持 File System Access API，请使用 Chrome / Edge，或改用 manifest.json 方式。');
+    return;
+  }
+  let dir;
+  try { dir = await window.showDirectoryPicker(); } catch (_) { return; }  // 用户取消
+
+  setStatus('正在扫描文件夹…');
+  const entries = [];
+  await collectTxt(dir, '', entries);
+  entries.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+  state.entries = entries;
+  updateFileCount();
+  setStatus(`已从本地目录载入 ${entries.length} 个 TXT 文件（点击结果行将在本页派生新窗口预览）`);
+}
+
+/* ============================================================
+ *  7. 初始化 & 事件
+ * ============================================================ */
+function updateFileCount() {
+  $('#fileCount').textContent = state.entries.length ? `共 ${state.entries.length} 个文件` : '';
+}
+
+$('#searchForm').addEventListener('submit', e => {
+  e.preventDefault();
+  doSearch($('#kw').value);
+});
+
+$('#pickDir').addEventListener('click', pickDirectory);
+
+$('#toggleAll').addEventListener('click', () => {
+  const all = [...resultsEl.querySelectorAll('details.file')];
+  if (!all.length) return;
+  const anyOpen = all.some(d => d.open);
+  all.forEach(d => d.open = !anyOpen);
+  $('#toggleAll').textContent = anyOpen ? '全部展开' : '全部折叠';
+});
+
+(async function init() {
+  setStatus('正在读取文件清单…');
+  try {
+    state.entries = await loadManifest();
+    setStatus(`已载入 ${state.entries.length} 个 TXT 文件（来源：manifest.json）`);
+  } catch (e1) {
+    try {
+      state.entries = await loadDirIndex();
+      setStatus(`已载入 ${state.entries.length} 个 TXT 文件（来源：目录索引页）`);
+    } catch (e2) {
+      setStatus('未能获取文件清单：请生成 txt/manifest.json，或点击「选择本地文件夹」。');
+    }
+  }
+  updateFileCount();
+  $('#kw').focus();
+})();
+</script>
+</body>
+</html>
