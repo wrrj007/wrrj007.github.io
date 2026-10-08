@@ -14,6 +14,9 @@
   C.cacheIndex = function () { return IDB.index(); };
   C.cacheEvict = function (force) { return IDB.evict(force); };
   C.cacheClear = function () { return IDB.clear(); };
+  C.kvGet = function (k) { return IDB.kvGet(k); };
+  C.kvSet = function (k, v) { return IDB.kvSet(k, v); };
+  C.kvDel = function (k) { return IDB.kvDel(k); };
 
   Object.defineProperty(C, 'cacheEnabled', {
     get: function () { return IDB.enabled; },

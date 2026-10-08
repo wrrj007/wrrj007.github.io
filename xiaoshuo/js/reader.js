@@ -36,35 +36,44 @@
 
     var path = S.path, root = S.root;
 
-    // 1) 本机文件夹模式递过来的 blob: 地址
+    /* 缓存 → 网络。blob 地址失败时也退到这里，两条路都走不通才报错。 */
+    function fromCacheOrNet() {
+      return C.cacheGet(path, null).then(function (hit) {
+        if (hit && hit.length) {
+          wrap.textContent = '已从本机缓存读取（' + CU.fmtBytes(hit.length) + '）';
+          return hit;
+        }
+        if (S.local) {
+          throw new Error('本机模式：这个文件还没有缓存。<br>请回到搜索页重新点一次这一行。');
+        }
+        wrap.textContent = '正在下载…';
+        var url = CU.fileUrl(root, path);
+        return C.getBytes(url, path, 0, {
+          onProgress: function (got, total) {
+            wrap.textContent = '正在下载 ' + CU.fmtBytes(got) + (total ? ' / ' + CU.fmtBytes(total) : '') + '…';
+          }
+        });
+      }).then(function (bytes) {
+        if (!bytes || !bytes.length) throw new Error('文件内容为空');
+        return bytes;
+      });
+    }
+
+    // 1) 本机文件夹模式递过来的 blob: 地址（拿不到就退回缓存/网络）
     if (S.src) {
       wrap.textContent = '正在读取本机文件…';
       return fetch(S.src).then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.arrayBuffer();
-      }).then(function (b) { return new Uint8Array(b); });
+      }).then(function (b) { return new Uint8Array(b); })
+        .catch(function (e) {
+          console.warn('blob 地址读取失败，改用缓存/网络：', e);
+          return fromCacheOrNet();
+        });
     }
 
-    // 2) 本机缓存（搜索时已经读过，直接复用，不再下载）
-    return C.cacheGet(path, null).then(function (hit) {
-      if (hit && hit.length) {
-        wrap.textContent = '已从本机缓存读取（' + CU.fmtBytes(hit.length) + '）';
-        return hit;
-      }
-      if (S.local) {
-        throw new Error('本机模式：这个文件还没有缓存。<br>请回到搜索页重新点一次这一行。');
-      }
-      wrap.textContent = '正在下载…';
-      var url = CU.fileUrl(root, path);
-      return C.getBytes(url, path, 0, {
-        onProgress: function (got, total) {
-          wrap.textContent = '正在下载 ' + CU.fmtBytes(got) + (total ? ' / ' + CU.fmtBytes(total) : '') + '…';
-        }
-      });
-    }).then(function (bytes) {
-      if (!bytes || !bytes.length) throw new Error('文件内容为空');
-      return bytes;
-    });
+    // 2) 本机缓存 → 3) 网络
+    return fromCacheOrNet();
   }
 
   /* ==================== 行号索引 ==================== */

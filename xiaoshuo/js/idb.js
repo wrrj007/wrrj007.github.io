@@ -9,7 +9,7 @@
   'use strict';
 
   var DB_NAME = 'txtsearch';
-  var DB_VER = 2;
+  var DB_VER = 3;
 
   var IDB = {
     enabled: true,
@@ -31,6 +31,7 @@
         var db = req.result;
         if (!db.objectStoreNames.contains('data')) db.createObjectStore('data', { keyPath: 'k' });
         if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'k' });
+        if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv', { keyPath: 'k' });
       };
       req.onsuccess = function () { IDB._db = req.result; res(IDB._db); };
       req.onerror = function () { rej(req.error); };
@@ -176,6 +177,32 @@
       var t = tx(db, ['meta', 'data'], 'readwrite');
       t.objectStore('meta').clear();
       t.objectStore('data').clear();
+      return done(t);
+    }).catch(function () { return false; });
+  };
+
+  /* ---------- 杂项键值（用来记住上次选过的本地文件夹） ---------- */
+  IDB.kvGet = function (k) {
+    return openDB().then(function (db) {
+      var t = tx(db, ['kv'], 'readonly');
+      return wrap(t.objectStore('kv').get(k)).then(function (rec) {
+        return rec ? rec.v : null;
+      });
+    }).catch(function () { return null; });
+  };
+
+  IDB.kvSet = function (k, v) {
+    return openDB().then(function (db) {
+      var t = tx(db, ['kv'], 'readwrite');
+      t.objectStore('kv').put({ k: k, v: v });
+      return done(t);
+    }).catch(function () { return false; });
+  };
+
+  IDB.kvDel = function (k) {
+    return openDB().then(function (db) {
+      var t = tx(db, ['kv'], 'readwrite');
+      t.objectStore('kv').delete(k);
       return done(t);
     }).catch(function () { return false; });
   };

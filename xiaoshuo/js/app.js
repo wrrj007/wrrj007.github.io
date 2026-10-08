@@ -18,7 +18,7 @@
     blocks: {}, order: [],
     totalBytes: 0, doneBytes: 0, doneFiles: 0, totalFiles: 0,
     hitFiles: 0, hitLines: 0, cachedBytes: 0, cachedFiles: 0,
-    needBytes: 0, netBytes: 0, fromCacheFiles: 0, t0: 0
+    needBytes: 0, netBytes: 0, fromCacheFiles: 0, localFiles: 0, t0: 0
   };
 
   function fmtTime(s) {
@@ -175,7 +175,7 @@
     state.busy = true; state.warming = false; state.kw = kw;
     state.blocks = {}; state.order = [];
     state.doneBytes = 0; state.doneFiles = 0; state.hitFiles = 0; state.hitLines = 0;
-    state.netBytes = 0; state.fromCacheFiles = 0;
+    state.netBytes = 0; state.fromCacheFiles = 0; state.localFiles = 0;
     state.totalFiles = files.length;
     state.totalBytes = files.reduce(function (s, f) { return s + (f.size || 0); }, 0);
     state.t0 = Date.now();
@@ -220,6 +220,11 @@
         if (res && res.fromCache) {
           state.fromCacheFiles++;
           state.doneBytes += (f.size || 0);          // 从缓存读的也算「已读取」
+        } else if (res && res.local) {
+          state.localFiles++;
+          if (!f.size && res.size) f.size = res.size;
+          if (!f.size && res.bytes) f.size = res.bytes;
+          state.doneBytes += (f.size || 0);
         } else if (res && res.bytes != null) {
           /* 进度消息被节流（每 120ms 一条），末段字节数要靠这里补上，
              否则快网络下「已读取」会少报一大截 */
@@ -235,7 +240,7 @@
             dir: f.path.split('/').slice(0, -1).join(' / '),
             count: res.hits.length, occ: res.occ, truncated: res.truncated,
             lines: res.lines, size: f.size, hits: res.hits,
-            local: !!f.file, file: f.file || null
+            local: !!(f.file || f.handle), file: f.file || null, handle: f.handle || null
           });
         }
         tickStatus();
@@ -269,19 +274,23 @@
     setTimeout(function () { $('#pbarWrap').hidden = true; }, 800);
     sortAndRank();
     var ms = Date.now() - t0;
-    var cachedNote = state.fromCacheFiles ? ('，其中 ' + state.fromCacheFiles + ' 本直接读本机缓存') : '';
+    var parts = [];
+    if (state.localFiles) parts.push('其中 ' + state.localFiles + ' 本直接读本机文件');
+    if (state.fromCacheFiles) parts.push('其中 ' + state.fromCacheFiles + ' 本读本机缓存');
+    parts.push(state.netBytes > 0 ? ('下载 ' + CU.fmtBytes(state.netBytes)) : '未联网下载');
+    var note = '，' + parts.join('，');
     if (cancelled) {
       setStatus('已取消：扫描了 ' + state.doneFiles + '/' + state.totalFiles +
                 ' 本，命中 <b>' + CU.fmtNum(state.hitLines) + '</b> 行');
     } else if (!state.hitFiles) {
       setStatus('<span class="ok">✔ 完成</span>：' + state.totalFiles + ' 本中都没有「' +
-                escapeHtml(state.kw) + '」，下载 ' + CU.fmtBytes(state.netBytes) + cachedNote +
+                escapeHtml(state.kw) + '」' + note +
                 '，用时 ' + (ms / 1000).toFixed(1) + ' 秒');
       resultsEl.innerHTML = '<div class="empty">没有找到包含「' + escapeHtml(state.kw) +
         '」的内容<br><small>可试试更短的关键词，或把范围改成「全部目录」</small></div>';
     } else {
       setStatus('<span class="ok">✔ 完成</span>：' + state.hitFiles + ' 本命中，共 <b>' +
-        CU.fmtNum(state.hitLines) + '</b> 行结果，下载 ' + CU.fmtBytes(state.netBytes) + cachedNote +
+        CU.fmtNum(state.hitLines) + '</b> 行结果' + note +
         '，用时 ' + (ms / 1000).toFixed(1) + ' 秒');
     }
     refreshCacheInfo();
@@ -382,7 +391,7 @@
       active++;
       w.postMessage({
         type: jobType || 'job', id: next, path: f.path, size: f.size, url: f.url,
-        file: f.file || null, opts: opts, enc: f.enc
+        file: f.file || null, handle: f.handle || null, opts: opts, enc: f.enc
       });
     }
     workers.forEach(function (w) {
@@ -416,12 +425,19 @@
         return;
       }
       var f = files[i++];
-      var load;
+      var load, wasCached = false;
       if (f.file) {
         load = f.file.arrayBuffer().then(function (b) { return new Uint8Array(b); });
+      } else if (f.handle) {
+        load = f.handle.getFile()
+          .then(function (x) { return x.arrayBuffer(); })
+          .then(function (b) { return new Uint8Array(b); });
       } else {
         load = C.getBytes(f.url, f.path, f.size, {
-          onProgress: function (got) { h.onProgress(f, got); }
+          onProgress: function (got, total, isCache) {
+            if (isCache) { wasCached = true; return; }   // 缓存命中不算下载
+            h.onProgress(f, got);
+          }
         });
       }
       load.then(function (bytes) {
@@ -430,7 +446,11 @@
           return null;
         }
         return CU.searchOne(function () { return Promise.resolve(bytesStream(bytes, 262144)); },
-          opts, null).then(function (res) { h.onResult(f, res); });
+          opts, null).then(function (res) {
+            res.local = !!(f.file || f.handle);
+            res.fromCache = !res.local && wasCached;
+            h.onResult(f, res);
+          });
       }).catch(function (err) {
         h.onError(f, err);
       }).then(function () {
@@ -523,13 +543,29 @@
     if (state.root) p.set('root', state.root);
     if (state.kw) p.set('q', state.kw);
     if ($('#ci').checked) p.set('ci', '1');
+
     if (d.file) {
       // 本机文件夹模式：新窗口拿不到 File 对象，用一个 blob: 地址递过去
       try { p.set('src', URL.createObjectURL(d.file)); }
       catch (e) { p.set('local', '1'); }
-    } else if (d.local) {
-      p.set('local', '1');
+      window.open('reader.html?' + p.toString(), '_blank');
+      return;
     }
+    if (d.handle) {
+      // 句柄要先 getFile() 才能拿到内容；先同步开好窗口，免得被弹窗拦截
+      var w = window.open('', '_blank');
+      Promise.resolve(d.handle.getFile()).then(function (f) {
+        try { p.set('src', URL.createObjectURL(f)); } catch (e) { p.set('local', '1'); }
+        var url = 'reader.html?' + p.toString();
+        if (w && !w.closed) w.location.href = url; else window.open(url, '_blank');
+      }).catch(function () {
+        p.set('local', '1');
+        var url = 'reader.html?' + p.toString();
+        if (w && !w.closed) w.location.href = url; else window.open(url, '_blank');
+      });
+      return;
+    }
+    if (d.local) p.set('local', '1');
     window.open('reader.html?' + p.toString(), '_blank');
   }
 
@@ -548,19 +584,105 @@
     resultsEl.appendChild(frag);
   }
 
-  /* ==================== 本机文件夹模式 ==================== */
-  function useLocalFiles(fileList) {
-    var files = C.collectFromInput(fileList, true);
-    if (!files.length) { setStatus('这个文件夹里没有 .txt 文件'); return; }
+  /* ============ 本机文件夹模式（最快：直接读硬盘，全程不走网络） ============ */
+  var DIR_KEY = 'lastDirHandle';
+
+  function applyLocalEntries(entries) {
+    if (!entries.length) { setStatus('这个文件夹里没有 .txt 文件'); return; }
     state.root = '';
     state.local = true;
-    state.files = files.map(function (f) {
-      return { path: f.path, size: f.size, file: f.file, url: absUrl(CU.fileUrl('', f.path)) };
+    state.files = entries.map(function (e) {
+      return {
+        path: e.path, size: e.size || 0,
+        file: e.file || null, handle: e.handle || null,
+        url: absUrl(CU.fileUrl('', e.path))
+      };
     });
     afterFiles('本机文件夹');
-    setStatus('已从本机文件夹读入 ' + files.length + ' 个 TXT（共 ' +
-      CU.fmtBytes(files.reduce(function (s, f) { return s + f.size; }, 0)) +
-      '）。数据不会上传，只在本机搜索。');
+    setStatus('已从本机文件夹载入 <b>' + state.files.length + '</b> 个 TXT（' +
+      CU.fmtBytes(state.totalBytes) + '）。搜索<b>直接读硬盘、不走网络</b>，所以最快。');
+  }
+
+  /* 用 <input webkitdirectory> 选出来的 File 列表 */
+  function useLocalFiles(fileList) {
+    applyLocalEntries(C.collectFromInput(fileList, true));
+  }
+
+  /* 递归收集目录句柄下的所有 .txt */
+  async function collectHandles(dir, prefix, out) {
+    for await (var pair of dir.entries()) {
+      var name = pair[0], handle = pair[1];
+      if (handle.kind === 'file') {
+        if (/\.txt$/i.test(name)) out.push({ path: prefix + name, handle: handle });
+      } else if (handle.kind === 'directory') {
+        await collectHandles(handle, prefix + name + '/', out);
+      }
+    }
+    return out;
+  }
+
+  /* 要 getFile() 才知道大小；只读元数据、并发拿一遍，很快 */
+  function fillSizes(entries) {
+    var i = 0, n = Math.min(8, entries.length);
+    function run() {
+      if (i >= entries.length) return Promise.resolve();
+      var e = entries[i++];
+      return Promise.resolve(e.handle.getFile())
+        .then(function (f) { e.size = f.size; }, function () {})
+        .then(run);
+    }
+    var runners = [];
+    for (var k = 0; k < n; k++) runners.push(run());
+    return Promise.all(runners);
+  }
+
+  function useDirectoryHandle(dir, remember) {
+    setStatus('正在扫描文件夹…', true);
+    var out = [];
+    return collectHandles(dir, '', out).then(function (list) {
+      list.sort(function (a, b) { return a.path < b.path ? -1 : 1; });
+      if (!list.length) { setStatus('这个文件夹里没有 .txt 文件'); return; }
+      setStatus('正在读取 ' + list.length + ' 个文件的信息…', true);
+      return fillSizes(list).then(function () {
+        applyLocalEntries(list);
+        if (remember) { try { C.kvSet(DIR_KEY, dir); } catch (e) {} }
+      });
+    });
+  }
+
+  /* 优先 File System Access API（可整目录递归、还能记住文件夹），
+     浏览器不支持时退回 <input webkitdirectory> */
+  function pickLocalDir() {
+    if (!window.showDirectoryPicker) { $('#dirInput').click(); return; }
+    Promise.resolve(window.showDirectoryPicker({ id: 'txtsearch', mode: 'read' }))
+      .then(function (dir) { return useDirectoryHandle(dir, true); })
+      .catch(function (err) {
+        if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) return;
+        console.warn('showDirectoryPicker 不可用，退回 input：', err);
+        $('#dirInput').click();
+      });
+  }
+
+  /* 上次选过的文件夹：有权限直接载入；没权限就给个按钮让用户点一下 */
+  function tryRestoreDir() {
+    if (!window.showDirectoryPicker) return;
+    C.kvGet(DIR_KEY).then(function (h) {
+      if (!h || typeof h.queryPermission !== 'function') return;
+      return Promise.resolve(h.queryPermission({ mode: 'read' })).then(function (st) {
+        if (st === 'granted') return useDirectoryHandle(h, false);
+        var btn = $('#restoreDir');
+        if (!btn) return;
+        btn.hidden = false;
+        btn.textContent = '📂 继续用上次的文件夹（' + (h.name || '') + '）';
+        btn.onclick = function () {
+          btn.hidden = true;
+          Promise.resolve(h.requestPermission({ mode: 'read' })).then(function (s2) {
+            if (s2 === 'granted') return useDirectoryHandle(h, false);
+            setStatus('没有拿到该文件夹的读取权限');
+          }).catch(function () { setStatus('没有拿到该文件夹的读取权限'); });
+        };
+      });
+    }).catch(function () {});
   }
 
   /* ==================== 事件 ==================== */
@@ -591,7 +713,7 @@
     });
   });
   $('#warm').addEventListener('click', doWarm);
-  $('#pickDir').addEventListener('click', function () { $('#dirInput').click(); });
+  $('#pickDir').addEventListener('click', pickLocalDir);
   $('#dirInput').addEventListener('change', function () {
     if (this.files && this.files.length) useLocalFiles(this.files);
   });
@@ -616,8 +738,20 @@
     console.warn(err);
     setStatus('没有找到 <code>manifest.js</code>：请先在 <a href="builder.html">生成清单</a> 里' +
               '选择一次「娱乐」文件夹并下载 manifest.js 放到本站根目录；' +
-              '也可以直接点下面的「搜索本机文件夹」。');
+              '也可以直接点上面的「选择本地文件夹」。');
     $('#hello').innerHTML = '还没有文件清单。<br><small>先打开 <a href="builder.html">builder.html</a> 生成 manifest.js，' +
-      '或直接点上面的「搜索本机文件夹（不上传）」。</small>';
+      '或直接点上面的「📂 选择本地文件夹（最快）」。</small>';
+  }).then(function () {
+    /* 直接用 file:// 打开时，浏览器不允许读取同目录的 TXT —— 提示走本机文件夹 */
+    if (location.protocol === 'file:') {
+      var tip = $('#fileTip');
+      if (tip) {
+        tip.hidden = false;
+        tip.innerHTML = '⚠️ 你是<b>直接打开本地文件</b>（file://）的，浏览器不允许这种页面读取同目录的 TXT，' +
+          '所以「搜索」（走网络）会失败。请点上面的 <b>📂 选择本地文件夹（最快）</b> —— ' +
+          '那样直接读硬盘、完全不联网，也是最快的方式。';
+      }
+    }
+    tryRestoreDir();
   });
 })();
