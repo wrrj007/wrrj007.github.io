@@ -12,13 +12,19 @@
        data/detail/YYYY-MM-DD.json  当日书籍详情（bookId -> 详情）
 
 可用环境变量：
-  FANQIE_DATE        指定采集日期（默认：北京时间当天，格式 YYYY-MM-DD）
+  FANQIE_DATE        指定采集日期归属（YYYY-MM-DD，默认自动推算，见下）
   FANQIE_SAVE_TOP    每个榜单保存前多少本（默认 30）
   FANQIE_DETAIL_TOP  每个榜单前多少本抓取详情（默认 20）
   FANQIE_KEEP_DAYS   历史数据保留天数，超期自动清理（默认 45，设 0 表示永久保留）
   FANQIE_WORKERS     详情抓取线程数（默认 4）
   FANQIE_NO_DETAIL   设为 1 则跳过详情抓取
+  FANQIE_SKIP_IF_EXISTS 设为 1 时，若目标日期的数据已存在则跳过（用于定时任务的兜底重跑）
   FANQIE_OUTPUT_DIR  自定义数据输出目录（默认 <仓库根>/fanqie/data）
+
+日期归属规则（番茄榜单每天中午 12:00 之后才更新为「前一天」的数据）：
+  - 北京时间 < 12:00 运行：拿到的是「前天」的数据，数据归属日期 = 今天 - 2
+  - 北京时间 >= 12:00 运行：拿到的是「昨天」的数据，数据归属日期 = 今天 - 1
+  例如 10-10 凌晨 01:00 采集 -> 归属 10-08；10-10 下午 13:00 采集 -> 归属 10-09。
 """
 
 import json
@@ -416,29 +422,55 @@ def build_read_history(data_dir: str, date_str: str, today_reads: Dict[str, int]
     return out
 
 
+def resolve_effective_date() -> str:
+    """自动推算本次采集的数据应归属的日期（北京时间）。
+
+    番茄榜单每天中午 12:00 之后才更新为「前一天」的数据，所以：
+      - < 12:00 运行时拿到的是「前天」的数据 -> 归属 = 今天 - 2
+      - >= 12:00 运行时拿到的是「昨天」的数据 -> 归属 = 今天 - 1
+    """
+    now = datetime.now(BJ_TZ)
+    offset = 1 if now.hour >= 12 else 2
+    return (now - timedelta(days=offset)).strftime("%Y-%m-%d")
+
+
 # ============================================================
 # 主流程
 # ============================================================
 def main():
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    date_str = os.environ.get("FANQIE_DATE", "").strip() or \
-        datetime.now(BJ_TZ).strftime("%Y-%m-%d")
+    date_str = os.environ.get("FANQIE_DATE", "").strip() or resolve_effective_date()
     save_top = int(os.environ.get("FANQIE_SAVE_TOP") or 30)
     detail_top = int(os.environ.get("FANQIE_DETAIL_TOP") or 20)
     keep_days = int(os.environ.get("FANQIE_KEEP_DAYS") or 45)
     workers = int(os.environ.get("FANQIE_WORKERS") or 4)
     no_detail = os.environ.get("FANQIE_NO_DETAIL", "").strip().lower() in ("1", "true", "yes")
+    skip_if_exists = os.environ.get("FANQIE_SKIP_IF_EXISTS", "").strip().lower() in ("1", "true", "yes")
     data_dir = os.environ.get("FANQIE_OUTPUT_DIR", "").strip() or \
         os.path.join(root_dir, "fanqie", "data")
 
+    daily_path = os.path.join(data_dir, "daily", "%s.json" % date_str)
+    detail_path = os.path.join(data_dir, "detail", "%s.json" % date_str)
+
     print("=" * 60)
     print("  番茄小说榜单每日采集")
-    print("  日期: %s" % date_str)
+    print("  数据归属日期: %s（北京时间 %s）"
+          % (date_str, datetime.now(BJ_TZ).strftime("%Y-%m-%d %H:%M")))
     print("  保存前 %d 本/榜  详情前 %d 本/榜  保留 %d 天  线程 %d"
           % (save_top, detail_top, keep_days, workers))
     print("  输出目录: %s" % data_dir)
     print("=" * 60)
+
+    # 兜底重跑：22:30 那次若已成功，23:00 这次直接跳过
+    if skip_if_exists:
+        has_daily = os.path.exists(daily_path) and os.path.getsize(daily_path) > 0
+        has_detail = os.path.exists(detail_path) and os.path.getsize(detail_path) > 0
+        if has_daily and (no_detail or has_detail):
+            print("[跳过] %s 的榜单与详情数据均已存在，无需重复采集" % date_str)
+            return
+        if has_daily:
+            print("[续采] %s 榜单已存在但缺少详情，重新采集以补齐详情" % date_str)
 
     ranks: Dict[str, Dict[str, Dict[str, List[Dict]]]] = {"male": {}, "female": {}}
     catalog: Dict[str, Dict[str, List[str]]] = {"male": {}, "female": {}}
@@ -477,7 +509,6 @@ def main():
         sys.exit(1)
 
     # 写入当日榜单
-    daily_path = os.path.join(data_dir, "daily", "%s.json" % date_str)
     write_json(daily_path, {
         "date": date_str,
         "generatedAt": datetime.now(BJ_TZ).strftime("%Y-%m-%d %H:%M:%S"),
@@ -529,7 +560,6 @@ def main():
             if rec is None:
                 rec = details[bid] = {}
             rec["read14"] = history.get(bid, [])
-        detail_path = os.path.join(data_dir, "detail", "%s.json" % date_str)
         write_json(detail_path, details)
         print("\n[详情] 成功抓取 %d/%d 本；近14天在读 %d 本，已写入 %s"
               % (detail_ok, len(detail_ids), len(history), detail_path))

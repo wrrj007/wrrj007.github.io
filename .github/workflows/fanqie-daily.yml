@@ -2,8 +2,10 @@ name: 番茄榜单每日采集
 
 on:
   schedule:
-    # GitHub Actions 使用 UTC 时间；UTC 14:00 = 北京时间 22:00
-    - cron: '0 14 * * *'
+    # GitHub Actions 使用 UTC；UTC 14:30 = 北京时间 22:30（采集到的是「前一天」的数据）
+    - cron: '30 14 * * *'
+    # UTC 15:00 = 北京时间 23:00，作为 22:30 那次失败时的兜底重跑（成功则自动跳过）
+    - cron: '0 15 * * *'
   workflow_dispatch:
     inputs:
       save_top:
@@ -19,7 +21,7 @@ on:
         required: false
         default: '45'
       date:
-        description: '采集日期(YYYY-MM-DD)，留空表示北京时间当天'
+        description: '数据归属日期(YYYY-MM-DD)，留空则自动推算'
         required: false
         default: ''
 
@@ -54,6 +56,8 @@ jobs:
           FANQIE_DETAIL_TOP: ${{ github.event.inputs.detail_top || '20' }}
           FANQIE_KEEP_DAYS: ${{ github.event.inputs.keep_days || '45' }}
           FANQIE_DATE: ${{ github.event.inputs.date }}
+          # 定时任务：目标日期数据已存在则跳过（23:00 兜底重跑用）；手动触发则强制执行
+          FANQIE_SKIP_IF_EXISTS: ${{ github.event_name == 'schedule' && '1' || '0' }}
         run: python scripts/fanqie_daily.py
 
       - name: 提交并推送数据
