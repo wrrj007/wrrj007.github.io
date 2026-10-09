@@ -11,15 +11,15 @@ on:
       save_top:
         description: '每个榜单保存前多少本'
         required: false
-        default: '30'
+        default: '40'
       detail_top:
         description: '每个榜单抓取详情的前多少本'
         required: false
-        default: '20'
+        default: '30'
       keep_days:
         description: '历史数据保留天数（0=永久保留）'
         required: false
-        default: '45'
+        default: '0'
       date:
         description: '数据归属日期(YYYY-MM-DD)，留空则自动推算'
         required: false
