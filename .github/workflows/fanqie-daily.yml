@@ -1,0 +1,69 @@
+name: 番茄榜单每日采集
+
+on:
+  schedule:
+    # GitHub Actions 使用 UTC 时间；UTC 14:00 = 北京时间 22:00
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+    inputs:
+      save_top:
+        description: '每个榜单保存前多少本'
+        required: false
+        default: '30'
+      detail_top:
+        description: '每个榜单抓取详情的前多少本'
+        required: false
+        default: '20'
+      keep_days:
+        description: '历史数据保留天数（0=永久保留）'
+        required: false
+        default: '45'
+      date:
+        description: '采集日期(YYYY-MM-DD)，留空表示北京时间当天'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fanqie-daily
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 运行采集
+        env:
+          FANQIE_SAVE_TOP: ${{ github.event.inputs.save_top || '30' }}
+          FANQIE_DETAIL_TOP: ${{ github.event.inputs.detail_top || '20' }}
+          FANQIE_KEEP_DAYS: ${{ github.event.inputs.keep_days || '45' }}
+          FANQIE_DATE: ${{ github.event.inputs.date }}
+        run: python scripts/fanqie_daily.py
+
+      - name: 提交并推送数据
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add fanqie/data
+          if git diff --cached --quiet; then
+            echo "没有数据变化，跳过提交"
+          else
+            git commit -m "chore(data): 番茄榜单采集 $(date -u +%Y-%m-%d)"
+            git push
+          fi

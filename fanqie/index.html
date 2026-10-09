@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>番茄小说榜单</title>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --line:#e4e7ec; --text:#1f2733; --muted:#6b7684;
+  --accent:#ff6b35; --accent-soft:#fff1ea; --rank:#8a94a6; --hover:#f7f9fc;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12151a; --panel:#1a1f27; --line:#2a313c; --text:#e6eaf0; --muted:#98a2b3;
+    --accent:#ff7a45; --accent-soft:#2a1c15; --rank:#7d8797; --hover:#20262f;
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
+  padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.title-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.title-row h1{font-size:18px;margin:0;letter-spacing:1px}
+.title-row .meta{color:var(--muted);font-size:12px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.tabs{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tabs button{border:0;background:transparent;color:var(--muted);padding:7px 16px;font-size:14px;cursor:pointer}
+.tabs button.active{background:var(--accent);color:#fff;font-weight:600}
+label.field{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+select{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;
+  padding:6px 10px;font-size:13px;min-width:96px;cursor:pointer}
+.count{color:var(--muted);font-size:12px;margin-left:auto}
+main{padding:12px 16px 40px;max-width:1400px;margin:0 auto}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{background:var(--bg);color:var(--muted);font-weight:600;font-size:12px;position:sticky;top:0}
+tbody tr{cursor:pointer;transition:background .12s}
+tbody tr:hover{background:var(--hover)}
+td.name{white-space:normal;min-width:180px;max-width:320px;font-weight:600;color:var(--accent)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+td.cat{white-space:normal;color:var(--muted);font-size:12px}
+td.time{color:var(--muted);font-size:12px}
+.rk{display:inline-block;min-width:24px;text-align:center;font-weight:700;color:var(--rank)}
+.rk.top{color:var(--accent)}
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:14px}
+.pager button{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 12px;
+  cursor:pointer;color:var(--text)}
+.pager button:disabled{opacity:.4;cursor:default}
+.empty{padding:60px 20px;text-align:center;color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:50;
+  align-items:center;justify-content:center;padding:16px}
+.modal.show{display:flex}
+.modal-card{background:var(--panel);border-radius:14px;max-width:720px;width:100%;max-height:88vh;
+  overflow:auto;padding:20px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.modal-card h2{margin:0 0 4px;font-size:20px}
+.modal-card .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.close{position:absolute;right:14px;top:12px;border:0;background:transparent;font-size:22px;
+  cursor:pointer;color:var(--muted);line-height:1}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px 18px;margin-bottom:14px}
+.kv div{display:flex;gap:8px;font-size:13px}
+.kv b{color:var(--muted);font-weight:500;min-width:78px;flex-shrink:0}
+.abstract{background:var(--bg);border-radius:10px;padding:12px;white-space:pre-wrap;
+  font-size:13px;line-height:1.7;margin-bottom:14px}
+.tags span{display:inline-block;background:var(--accent-soft);color:var(--accent);border-radius:20px;
+  padding:2px 10px;font-size:12px;margin:0 6px 6px 0}
+a.ext{color:var(--accent);text-decoration:none;font-size:13px}
+.note{color:var(--muted);font-size:12px;margin-top:10px}
+.head{display:flex;gap:16px;margin-bottom:14px}
+.head .cover{width:132px;flex:0 0 132px;aspect-ratio:3/4;object-fit:cover;border-radius:10px;
+  background:var(--bg);border:1px solid var(--line)}
+.head .info{flex:1;min-width:0}
+.head .info h2{margin:0 0 4px}
+.cover.noimg{background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='80'%3E%3Crect width='60' height='80' fill='%23e9edf2'/%3E%3Ctext x='30' y='45' font-size='10' fill='%2399a2b0' text-anchor='middle'%3E无封面%3C/text%3E%3C/svg%3E") center/cover no-repeat;border:1px solid var(--line)}
+.hist{margin:4px 0 16px}
+.hist-title{color:var(--muted);font-size:12px;margin-bottom:8px}
+.hist-list{display:grid;grid-template-columns:repeat(14,1fr);gap:3px}
+.hcell{background:var(--bg);border-radius:5px;padding:6px 2px 4px;text-align:center;display:flex;
+  flex-direction:column;align-items:center;justify-content:flex-end;min-height:62px;overflow:hidden}
+.hcell .hv{font-size:10px;font-weight:600;white-space:nowrap}
+.hcell.miss .hv{color:var(--muted)}
+.hcell .hbar{width:60%;background:var(--accent);opacity:.7;border-radius:3px 3px 0 0;margin-top:3px;min-height:2px}
+.hcell.miss .hbar{background:transparent;min-height:2px}
+.hcell .hd{font-size:9px;color:var(--muted);margin-top:3px}
+.pop{position:fixed;z-index:40;width:156px;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:8px;box-shadow:0 14px 34px rgba(0,0,0,.32);pointer-events:none}
+.pop img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px;display:block;background:var(--bg)}
+.pop .t{margin-top:6px;font-size:12px;font-weight:600;line-height:1.35;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+@media (max-width:600px){.head{flex-direction:column}.head .cover{width:110px;flex-basis:auto}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-row">
+    <h1>🍅 番茄小说榜单</h1>
+    <span class="meta" id="meta"></span>
+  </div>
+  <div class="controls">
+    <div class="tabs" id="tabs">
+      <button data-scope="all" class="active">全部榜单</button>
+      <button data-scope="male">男频总榜</button>
+      <button data-scope="female">女频总榜</button>
+    </div>
+    <label class="field">日期
+      <select id="dateSelect"></select>
+    </label>
+    <label class="field">榜单
+      <select id="rankSelect">
+        <option value="">全部榜单</option>
+        <option value="阅读榜">阅读榜</option>
+        <option value="新书榜">新书榜</option>
+      </select>
+    </label>
+    <label class="field">分类
+      <select id="catSelect"><option value="">全部分类</option></select>
+    </label>
+    <span class="count" id="count"></span>
+  </div>
+</header>
+
+<main>
+  <div id="content"></div>
+  <div class="pager" id="pager" hidden>
+    <button id="prev">上一页</button>
+    <span id="pageInfo" class="count"></span>
+    <button id="next">下一页</button>
+  </div>
+  <div class="empty" id="empty" hidden></div>
+</main>
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <button class="close" id="closeModal">×</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="pop" id="pop" hidden>
+  <img id="popImg" alt="">
+  <div class="t" id="popName"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var PAGE_SIZE = 100;
+  var STATUS = { 0: '连载', 1: '断更', 2: '完结' };
+
+  var state = {
+    index: null,
+    daily: null,
+    detail: {},
+    date: '',
+    scope: 'all',
+    rankType: '',
+    category: '',
+    rows: [],
+    page: 1
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function fmtWan(n) {
+    n = Number(n) || 0;
+    if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+    return String(n);
+  }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // 封面：每天采集到的是带签名的临时 URL，会过期；采集时另外存了稳定的
+  // novel-pic/xxx 路径，这里拼接永久地址（不过期、无防盗链）。
+  var COVER_HOSTS = ['https://p6-novel.byteimg.com/origin/', 'https://p3-novel.byteimg.com/origin/'];
+  function setCover(img, uri) {
+    if (!uri) { img.classList.add('noimg'); img.removeAttribute('src'); return; }
+    img.classList.remove('noimg');
+    var tryHost = function (h) {
+      if (h >= COVER_HOSTS.length) { img.onerror = null; img.classList.add('noimg'); return; }
+      img.onerror = function () { tryHost(h + 1); };
+      img.src = COVER_HOSTS[h] + uri;
+    };
+    tryHost(0);
+  }
+
+  function parseDate(s) {
+    var p = String(s || '').split('-');
+    return p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : null;
+  }
+  function fmtDate(d) {
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+
+  function renderHist(read14, endDate) {
+    var map = {};
+    (read14 || []).forEach(function (p) { map[p[0]] = p[1]; });
+    var end = parseDate(endDate);
+    if (!end) return '';
+    var cells = [], max = 0, i, d, key, v;
+    for (i = 13; i >= 0; i--) {
+      d = new Date(end.getFullYear(), end.getMonth(), end.getDate() - i);
+      key = fmtDate(d);
+      v = map[key];
+      if (typeof v === 'number' && v > max) max = v;
+      cells.push({ key: key, v: (typeof v === 'number' ? v : null) });
+    }
+    var html = '<div class="hist"><div class="hist-title">近 14 天「在读」（缺数据以 - 表示）</div>' +
+      '<div class="hist-list">';
+    cells.forEach(function (c) {
+      var miss = c.v === null;
+      var h = (!miss && max > 0) ? Math.max(4, Math.round(c.v / max * 36)) : 0;
+      html += '<div class="hcell' + (miss ? ' miss' : '') + '" title="' + c.key + '：' +
+        (miss ? '未采集' : (c.v) + ' 人') + '">' +
+        '<span class="hv">' + (miss ? '-' : fmtWan(c.v)) + '</span>' +
+        '<span class="hbar" style="height:' + h + 'px"></span>' +
+        '<span class="hd">' + c.key.slice(5) + '</span></div>';
+    });
+    return html + '</div></div>';
+  }
+
+  function getJSON(url) {
+    return fetch(url, { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    });
+  }
+
+  function showEmpty(msg) {
+    $('empty').hidden = false;
+    $('empty').textContent = msg;
+    $('content').innerHTML = '';
+    $('pager').hidden = true;
+  }
+
+  // ---------------- 初始化 ----------------
+  function init() {
+    getJSON('data/index.json').then(function (idx) {
+      state.index = idx;
+      var dates = idx.dates || [];
+      if (!dates.length) { showEmpty('暂无数据，请等待每日采集任务运行。'); return; }
+      var sel = $('dateSelect');
+      sel.innerHTML = dates.map(function (d) {
+        return '<option value="' + d + '">' + d + '</option>';
+      }).join('');
+      state.date = dates[0];
+      sel.value = state.date;
+      sel.addEventListener('change', function () {
+        state.date = sel.value; state.page = 1; loadDate();
+      });
+      bindControls();
+      loadDate();
+    }).catch(function () {
+      showEmpty('无法加载数据索引 data/index.json（若用 file:// 打开，请改用本地静态服务器）。');
+    });
+  }
+
+  function bindControls() {
+    $('tabs').addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      Array.prototype.forEach.call($('tabs').children, function (b) {
+        b.classList.toggle('active', b === btn);
+      });
+      state.scope = btn.getAttribute('data-scope');
+      state.category = '';
+      state.page = 1;
+      buildCategoryOptions();
+      render();
+    });
+    $('rankSelect').addEventListener('change', function () {
+      state.rankType = this.value; state.category = ''; state.page = 1;
+      buildCategoryOptions(); render();
+    });
+    $('catSelect').addEventListener('change', function () {
+      state.category = this.value; state.page = 1; render();
+    });
+    $('prev').addEventListener('click', function () {
+      if (state.page > 1) { state.page--; render(); window.scrollTo(0, 0); }
+    });
+    $('next').addEventListener('click', function () {
+      var max = Math.max(1, Math.ceil(state.rows.length / PAGE_SIZE));
+      if (state.page < max) { state.page++; render(); window.scrollTo(0, 0); }
+    });
+    $('closeModal').addEventListener('click', closeModal);
+    $('modal').addEventListener('click', function (e) {
+      if (e.target === $('modal')) closeModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeModal();
+    });
+  }
+
+  function countRanks(d) {
+    var n = 0;
+    if (d && d.ranks) {
+      Object.keys(d.ranks).forEach(function (g) {
+        Object.keys(d.ranks[g] || {}).forEach(function (rk) {
+          Object.keys(d.ranks[g][rk] || {}).forEach(function (c) {
+            n += (d.ranks[g][rk][c] || []).length;
+          });
+        });
+      });
+    }
+    return n;
+  }
+
+  function loadDate() {
+    getJSON('data/daily/' + state.date + '.json').then(function (d) {
+      state.daily = d;
+      var bookCount = countRanks(d);
+      state.category = '';
+      buildCategoryOptions();
+      return getJSON('data/detail/' + state.date + '.json')
+        .then(function (det) { state.detail = det || {}; })
+        .catch(function () { state.detail = {}; })
+        .then(function () {
+          var detailCount = 0;
+          Object.keys(state.detail).forEach(function (k) {
+            if (state.detail[k] && state.detail[k].bookName) detailCount++;
+          });
+          $('meta').textContent = '数据更新时间：' + (d.generatedAt || '—') +
+            '　·　榜单 ' + bookCount + ' 条 / 详情 ' + detailCount + ' 本';
+        });
+    }).then(function () {
+      render();
+    }).catch(function () {
+      showEmpty('无法加载 ' + state.date + ' 的榜单数据。');
+    });
+  }
+
+  function scopes() {
+    return state.scope === 'all' ? ['male', 'female'] : [state.scope];
+  }
+
+  function buildCategoryOptions() {
+    var set = {};
+    var d = state.daily;
+    if (d && d.catalog) {
+      scopes().forEach(function (g) {
+        var byRank = d.catalog[g] || {};
+        Object.keys(byRank).forEach(function (rk) {
+          if (state.rankType && rk !== state.rankType) return;
+          (byRank[rk] || []).forEach(function (c) { set[c] = 1; });
+        });
+      });
+    }
+    var cats = Object.keys(set).sort();
+    var sel = $('catSelect');
+    sel.innerHTML = '<option value="">全部分类</option>' +
+      cats.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+    sel.value = state.category || '';
+  }
+
+  // ---------------- 聚合 ----------------
+  function aggregate() {
+    var map = {};
+    var d = state.daily;
+    if (d && d.ranks) {
+      scopes().forEach(function (g) {
+        var byRank = d.ranks[g] || {};
+        Object.keys(byRank).forEach(function (rk) {
+          if (state.rankType && rk !== state.rankType) return;
+          var byCat = byRank[rk] || {};
+          Object.keys(byCat).forEach(function (cat) {
+            if (state.category && cat !== state.category) return;
+            (byCat[cat] || []).forEach(function (b) {
+              if (!b.bookId) return;
+              var rec = map[b.bookId];
+              if (!rec) {
+                rec = map[b.bookId] = {
+                  bookId: b.bookId, bookName: b.bookName, author: b.author,
+                  uid: b.uid, cover: b.cover || '', readCount: b.readCount,
+                  wordNumber: b.wordNumber, lastUpdate: b.lastUpdate, lists: {}
+                };
+              }
+              if (!rec.cover && b.cover) rec.cover = b.cover;
+              if ((b.readCount || 0) > (rec.readCount || 0)) rec.readCount = b.readCount || 0;
+              if ((b.wordNumber || 0) > (rec.wordNumber || 0)) rec.wordNumber = b.wordNumber || 0;
+              if (!rec.bookName && b.bookName) rec.bookName = b.bookName;
+              if (!rec.author && b.author) rec.author = b.author;
+              if (!rec.lastUpdate && b.lastUpdate) rec.lastUpdate = b.lastUpdate;
+              rec.lists[cat] = rk;
+            });
+          });
+        });
+      });
+    }
+    var rows = Object.keys(map).map(function (k) { return map[k]; });
+    rows.sort(function (a, b) { return (b.readCount || 0) - (a.readCount || 0); });
+    return rows;
+  }
+
+  function render() {
+    if (!state.daily) return;
+    state.rows = aggregate();
+    var total = state.rows.length;
+    $('count').textContent = '共 ' + total + ' 本';
+
+    if (!total) {
+      showEmpty('当前筛选条件下没有数据。');
+      return;
+    }
+    $('empty').hidden = true;
+
+    var maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (state.page > maxPage) state.page = maxPage;
+    var start = (state.page - 1) * PAGE_SIZE;
+    var slice = state.rows.slice(start, start + PAGE_SIZE);
+
+    var html = '<table><thead><tr>' +
+      '<th>排名</th><th>书名</th><th>作者</th><th>在读</th><th>字数</th>' +
+      '<th>分类</th><th>榜单</th><th>最后更新</th></tr></thead><tbody>';
+
+    slice.forEach(function (r, i) {
+      var rank = start + i + 1;
+      var cats = Object.keys(r.lists);
+      var catTxt = cats.length > 2 ? (cats.slice(0, 2).join('/') + ' 等' + cats.length + '类') : cats.join('/');
+      var rankTypes = {};
+      cats.forEach(function (c) { rankTypes[r.lists[c]] = 1; });
+      html += '<tr data-id="' + esc(r.bookId) + '">' +
+        '<td><span class="rk' + (rank <= 3 ? ' top' : '') + '">' + rank + '</span></td>' +
+        '<td class="name" title="' + esc(r.bookName) + '">' + esc(r.bookName) + '</td>' +
+        '<td>' + esc(r.author) + '</td>' +
+        '<td class="num">' + fmtWan(r.readCount) + '</td>' +
+        '<td class="num">' + fmtWan(r.wordNumber) + '</td>' +
+        '<td class="cat">' + esc(catTxt) + '</td>' +
+        '<td class="cat">' + esc(Object.keys(rankTypes).join('/')) + '</td>' +
+        '<td class="time">' + esc(r.lastUpdate) + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+    $('content').innerHTML = html;
+
+    $('pager').hidden = maxPage <= 1;
+    $('pageInfo').textContent = '第 ' + state.page + ' / ' + maxPage + ' 页';
+
+    state.byId = {};
+    state.rows.forEach(function (r) { state.byId[r.bookId] = r; });
+
+    Array.prototype.forEach.call($('content').querySelectorAll('tbody tr'), function (tr) {
+      tr.addEventListener('click', function () { openDetail(tr.getAttribute('data-id')); });
+    });
+    bindRowHover();
+  }
+
+  // ---------------- 鼠标悬停浮层预览封面 ----------------
+  var hoverBound = false;
+  var hoverId = null;
+  function bindRowHover() {
+    if (hoverBound) return;
+    if (!(window.matchMedia && window.matchMedia('(hover:hover)').matches)) return;
+    hoverBound = true;
+    var content = $('content');
+    content.addEventListener('mouseover', function (e) {
+      var tr = e.target.closest ? e.target.closest('tr[data-id]') : null;
+      if (!tr) return;
+      var id = tr.getAttribute('data-id');
+      var r = state.byId[id];
+      if (!r) return;
+      // 同一行内移动鼠标时 mouseover 会反复触发，仅在换行时才重新加载封面
+      if (hoverId !== id) {
+        hoverId = id;
+        setCover($('popImg'), r.cover);
+        $('popName').textContent = r.bookName || '';
+      }
+      $('pop').hidden = false;
+      positionPop(e);
+    });
+    content.addEventListener('mousemove', function (e) {
+      if (!$('pop').hidden) positionPop(e);
+    });
+    content.addEventListener('mouseout', function (e) {
+      var tr = e.target.closest ? e.target.closest('tr[data-id]') : null;
+      if (tr) { hoverId = null; $('pop').hidden = true; }
+    });
+  }
+
+  function positionPop(e) {
+    var pop = $('pop');
+    var w = pop.offsetWidth || 156, h = pop.offsetHeight || 220;
+    var x = e.clientX + 18, y = e.clientY + 18;
+    if (x + w > window.innerWidth - 8) x = Math.max(8, e.clientX - w - 18);
+    if (y + h > window.innerHeight - 8) y = Math.max(8, window.innerHeight - h - 8);
+    pop.style.left = x + 'px';
+    pop.style.top = y + 'px';
+  }
+
+  function openDetail(bookId) {
+    var d = state.detail[bookId] || {};
+    var row = (state.byId && state.byId[bookId]) || null;
+    var cover = d.cover || (row && row.cover) || '';
+    var name = d.bookName || (row && row.bookName) || bookId;
+    var hasDetail = !!d.bookName;
+
+    var head =
+      '<div class="head">' +
+      '<img class="cover' + (cover ? '' : ' noimg') + '" id="covImg" alt="' + esc(name) + '">' +
+      '<div class="info">' +
+      '<h2>' + esc(name) + '</h2>' +
+      '<div class="sub">' + esc(d.author || (row && row.author) || '') +
+      (d.category ? '　·　' + esc(d.category) : '') +
+      '　·　<a class="ext" href="https://fanqienovel.com/page/' + encodeURIComponent(bookId) +
+      '" target="_blank" rel="noopener">在番茄打开 ↗</a></div>' +
+      (hasDetail ? fullKv(d) : rankKv(row)) +
+      '</div></div>';
+
+    var tail = renderHist(d.read14, state.date) +
+      (hasDetail
+        ? ((d.tags ? '<div class="tags">' + tagsHtml(d.tags) + '</div>' : '') +
+           '<div class="abstract">' + esc(d.abstract || '暂无简介') + '</div>')
+        : '<div class="note">该日期未采集到这本书的详细信息（详情仅覆盖每个榜单前若干本），上方为榜单可得数据与近 14 天在读。</div>');
+
+    $('modalBody').innerHTML = head + tail;
+    $('pop').hidden = true;
+    setCover($('covImg'), cover);
+    $('modal').classList.add('show');
+  }
+
+  function tagsHtml(tags) {
+    return String(tags).split(/[,，]/).filter(Boolean)
+      .map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('');
+  }
+
+  function fullKv(d) {
+    return '<div class="kv">' +
+      kv('在读(14天)', fmtWan(d.readCount)) +
+      kv('30天阅读', fmtWan(d.readCount30d)) +
+      kv('总阅读', fmtWan(d.readCountAll)) +
+      kv('字数', fmtWan(d.wordNumber)) +
+      kv('评分', d.score) +
+      kv('状态', STATUS[d.updateStatus] || '—') +
+      kv('14天书架', fmtWan(d.addShelf14d)) +
+      kv('总书架', fmtWan(d.allBookshelf)) +
+      kv('播放数', fmtWan(d.listenCount)) +
+      kv('持续更新', (d.keepUpdateDays || 0) + ' 天') +
+      kv('最近更新字数', fmtWan(d.recentUpdateWord)) +
+      kv('作者ID', d.authorId || '') +
+      kv('创建时间', d.createTime || '') +
+      kv('最后更新时间', d.lastChapterUpdateTime || '') +
+      '</div>';
+  }
+
+  function rankKv(row) {
+    return '<div class="kv">' +
+      kv('在读(榜单)', fmtWan(row && row.readCount)) +
+      kv('字数', fmtWan(row && row.wordNumber)) +
+      kv('最后更新', (row && row.lastUpdate) || '') +
+      '</div>';
+  }
+
+  function kv(k, v) {
+    return '<div><b>' + esc(k) + '</b><span>' + esc(v == null ? '—' : v) + '</span></div>';
+  }
+
+  function closeModal() { $('modal').classList.remove('show'); }
+
+  init();
+})();
+</script>
+</body>
+</html>
