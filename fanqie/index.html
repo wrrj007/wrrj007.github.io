@@ -90,6 +90,17 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
 .pop img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px;display:block;background:var(--bg)}
 .pop .t{margin-top:6px;font-size:12px;font-weight:600;line-height:1.35;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;
+  padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn:disabled{opacity:.5;cursor:default}
+.pbar{height:6px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:10px}
+.pbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.exp-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.exp-row input[type=date]{background:var(--panel);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit}
+a.author{color:var(--accent);text-decoration:none}
+a.author:hover{text-decoration:underline}
 @media (max-width:600px){.head{flex-direction:column}.head .cover{width:110px;flex-basis:auto}}
 </style>
 </head>
@@ -119,6 +130,7 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
     <label class="field">分类
       <select id="catSelect"><option value="">全部分类</option></select>
     </label>
+    <button class="btn primary" id="exportBtn">导出 Excel</button>
     <span class="count" id="count"></span>
   </div>
 </header>
@@ -143,6 +155,24 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
 <div class="pop" id="pop" hidden>
   <img id="popImg" alt="">
   <div class="t" id="popName"></div>
+</div>
+
+<div class="modal" id="exportModal">
+  <div class="modal-card" style="max-width:520px">
+    <button class="close" id="closeExport">×</button>
+    <h2 style="margin:0 0 6px;font-size:18px">导出 Excel</h2>
+    <div class="sub" style="color:var(--muted);font-size:13px;margin-bottom:14px" id="exportHint"></div>
+    <div class="exp-row">
+      <label class="field">起始日期 <input type="date" id="expStart"></label>
+      <label class="field">结束日期 <input type="date" id="expEnd"></label>
+    </div>
+    <div class="note" id="exportInfo"></div>
+    <div class="pbar" id="exportBar" hidden><i id="exportBarFill"></i></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button class="btn" id="exportCancel">取消</button>
+      <button class="btn primary" id="exportGo">开始导出</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -174,6 +204,23 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // 作者链接：笔名 -> 作者主页；作者ID -> 作者作品接口
+  var AUTHOR_API = 'https://api5-normal-sinfonlinea.fqnovel.com/reading/user/author_book/get/v?aid=1967&iid=1&version_code=999&user_id=';
+  var AUTHOR_PAGE = 'https://fanqienovel.com/author-page/';
+
+  function authorLink(name, uid) {
+    if (!name) return '';
+    if (!uid) return esc(name);
+    return '<a class="author" href="' + AUTHOR_PAGE + encodeURIComponent(uid) +
+      '" target="_blank" rel="noopener">' + esc(name) + '</a>';
+  }
+
+  function authorIdLink(uid) {
+    if (!uid) return '';
+    return '<a class="author" href="' + AUTHOR_API + encodeURIComponent(uid) +
+      '" target="_blank" rel="noopener">' + esc(uid) + '</a>';
   }
 
   // 封面：每天采集到的是带签名的临时 URL，会过期；采集时另外存了稳定的
@@ -292,10 +339,19 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
     $('modal').addEventListener('click', function (e) {
       if (e.target === $('modal')) closeModal();
     });
+    $('exportBtn').addEventListener('click', openExport);
+    $('closeExport').addEventListener('click', closeExport);
+    $('exportCancel').addEventListener('click', closeExport);
+    $('exportGo').addEventListener('click', runExport);
+    $('exportModal').addEventListener('click', function (e) {
+      if (e.target === $('exportModal')) closeExport();
+    });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') { closeModal(); closeExport(); }
     });
   }
+
+  function closeExport() { $('exportModal').classList.remove('show'); }
 
   function countRanks(d) {
     var n = 0;
@@ -427,7 +483,7 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
       html += '<tr data-id="' + esc(r.bookId) + '">' +
         '<td><span class="rk' + (rank <= 3 ? ' top' : '') + '">' + rank + '</span></td>' +
         '<td class="name" title="' + esc(r.bookName) + '">' + esc(r.bookName) + '</td>' +
-        '<td>' + esc(r.author) + '</td>' +
+        '<td>' + authorLink(r.author, r.uid) + '</td>' +
         '<td class="num">' + fmtWan(r.readCount) + '</td>' +
         '<td class="num">' + fmtWan(r.wordNumber) + '</td>' +
         '<td class="cat">' + esc(catTxt) + '</td>' +
@@ -445,7 +501,10 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
     state.rows.forEach(function (r) { state.byId[r.bookId] = r; });
 
     Array.prototype.forEach.call($('content').querySelectorAll('tbody tr'), function (tr) {
-      tr.addEventListener('click', function () { openDetail(tr.getAttribute('data-id')); });
+      tr.addEventListener('click', function (e) {
+        if (e.target.closest && e.target.closest('a')) return;  // 点作者链接时不弹窗
+        openDetail(tr.getAttribute('data-id'));
+      });
     });
     bindRowHover();
   }
@@ -504,7 +563,8 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
       '<img class="cover' + (cover ? '' : ' noimg') + '" id="covImg" alt="' + esc(name) + '">' +
       '<div class="info">' +
       '<h2>' + esc(name) + '</h2>' +
-      '<div class="sub">' + esc(d.author || (row && row.author) || '') +
+      '<div class="sub">' + (authorLink(d.author || (row && row.author) || '',
+        d.authorId || (row && row.uid)) || '') +
       (d.category ? '　·　' + esc(d.category) : '') +
       '　·　<a class="ext" href="https://fanqienovel.com/page/' + encodeURIComponent(bookId) +
       '" target="_blank" rel="noopener">在番茄打开 ↗</a></div>' +
@@ -541,7 +601,7 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
       kv('播放数', fmtWan(d.listenCount)) +
       kv('持续更新', (d.keepUpdateDays || 0) + ' 天') +
       kv('最近更新字数', fmtWan(d.recentUpdateWord)) +
-      kv('作者ID', d.authorId || '') +
+      kvHtml('作者ID', authorIdLink(d.authorId)) +
       kv('创建时间', d.createTime || '') +
       kv('最后更新时间', d.lastChapterUpdateTime || '') +
       '</div>';
@@ -557,6 +617,319 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
 
   function kv(k, v) {
     return '<div><b>' + esc(k) + '</b><span>' + esc(v == null ? '—' : v) + '</span></div>';
+  }
+
+  function kvHtml(k, html) {
+    return '<div><b>' + esc(k) + '</b><span>' + (html || '—') + '</span></div>';
+  }
+
+  // ============================================================
+  // 导出 Excel（纯原生实现：ZIP + XLSX，无第三方依赖）
+  // ============================================================
+  var EXPORT_MIN_DATE = '2026-10-08';   // 数据最早只从这一天开始
+  var EXCEL_MAX_ROWS = 1048575;
+
+  var CRC_TABLE = (function () {
+    var t = new Uint32Array(256), n, k, c;
+    for (n = 0; n < 256; n++) {
+      c = n;
+      for (k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function crc32(bytes) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function utf8(s) { return new TextEncoder().encode(s); }
+
+  function xmlEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+  }
+
+  function num(v) {
+    var n = Number(v);
+    return (v === '' || v == null || !isFinite(n)) ? '' : n;
+  }
+
+  function colName(idx) {
+    var s = '', n = idx + 1;
+    while (n > 0) { var r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+    return s;
+  }
+
+  function sheetXml(rows) {
+    var maxCols = 0, i;
+    for (i = 0; i < rows.length; i++) if (rows[i].length > maxCols) maxCols = rows[i].length;
+    var ref = 'A1:' + colName(Math.max(0, maxCols - 1)) + Math.max(1, rows.length);
+    var out = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+      '<dimension ref="' + ref + '"/><sheetData>'];
+    for (var r = 0; r < rows.length; r++) {
+      out.push('<row r="' + (r + 1) + '">');
+      var row = rows[r];
+      for (var c = 0; c < row.length; c++) {
+        var v = row[c];
+        if (v === null || v === undefined || v === '') continue;
+        var ref = colName(c) + (r + 1);
+        if (typeof v === 'number' && isFinite(v)) {
+          out.push('<c r="' + ref + '"><v>' + v + '</v></c>');
+        } else {
+          out.push('<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEsc(v) + '</t></is></c>');
+        }
+      }
+      out.push('</row>');
+    }
+    out.push('</sheetData></worksheet>');
+    return out.join('');
+  }
+
+  function deflateRaw(bytes) {
+    if (typeof CompressionStream === 'undefined') return Promise.resolve(null);
+    try {
+      var cs = new CompressionStream('deflate-raw');
+      var writer = cs.writable.getWriter();
+      writer.write(bytes);
+      writer.close();
+      return new Response(cs.readable).arrayBuffer()
+        .then(function (buf) { return new Uint8Array(buf); })
+        .catch(function () { return null; });
+    } catch (e) { return Promise.resolve(null); }
+  }
+
+  function dosDateTime(d) {
+    return {
+      date: (((d.getFullYear() - 1980) & 0x7F) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(),
+      time: (d.getHours() << 11) | (d.getMinutes() << 5) | Math.floor(d.getSeconds() / 2)
+    };
+  }
+
+  function assembleZip(entries, dt) {
+    var chunks = [], central = [], offset = 0;
+    entries.forEach(function (e) {
+      var nameLen = e.nameBytes.length;
+      var lh = new Uint8Array(30 + nameLen), dv = new DataView(lh.buffer);
+      dv.setUint32(0, 0x04034b50, true);
+      dv.setUint16(4, 20, true);
+      dv.setUint16(6, 0x0800, true);
+      dv.setUint16(8, e.method, true);
+      dv.setUint16(10, dt.time, true);
+      dv.setUint16(12, dt.date, true);
+      dv.setUint32(14, e.crc, true);
+      dv.setUint32(18, e.stored.length, true);
+      dv.setUint32(22, e.size, true);
+      dv.setUint16(26, nameLen, true);
+      dv.setUint16(28, 0, true);
+      lh.set(e.nameBytes, 30);
+      chunks.push(lh, e.stored);
+
+      var ch = new Uint8Array(46 + nameLen), dv2 = new DataView(ch.buffer);
+      dv2.setUint32(0, 0x02014b50, true);
+      dv2.setUint16(4, 20, true);
+      dv2.setUint16(6, 20, true);
+      dv2.setUint16(8, 0x0800, true);
+      dv2.setUint16(10, e.method, true);
+      dv2.setUint16(12, dt.time, true);
+      dv2.setUint16(14, dt.date, true);
+      dv2.setUint32(16, e.crc, true);
+      dv2.setUint32(20, e.stored.length, true);
+      dv2.setUint32(24, e.size, true);
+      dv2.setUint16(28, nameLen, true);
+      dv2.setUint32(42, offset, true);
+      ch.set(e.nameBytes, 46);
+      central.push(ch);
+
+      offset += lh.length + e.stored.length;
+    });
+
+    var cdSize = central.reduce(function (a, c) { return a + c.length; }, 0);
+    var eocd = new Uint8Array(22), dv3 = new DataView(eocd.buffer);
+    dv3.setUint32(0, 0x06054b50, true);
+    dv3.setUint16(8, entries.length, true);
+    dv3.setUint16(10, entries.length, true);
+    dv3.setUint32(12, cdSize, true);
+    dv3.setUint32(16, offset, true);
+
+    return new Blob(chunks.concat(central, [eocd]),
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  function zipFiles(files) {
+    var dt = dosDateTime(new Date());
+    return Promise.all(files.map(function (f) {
+      return deflateRaw(f.data).then(function (comp) {
+        var useDeflate = !!comp && comp.length < f.data.length;
+        return {
+          nameBytes: utf8(f.name),
+          stored: useDeflate ? comp : f.data,
+          method: useDeflate ? 8 : 0,
+          crc: crc32(f.data),
+          size: f.data.length
+        };
+      });
+    })).then(function (entries) { return assembleZip(entries, dt); });
+  }
+
+  function buildXlsx(sheets) {
+    var files = [];
+    var ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>';
+    var wbSheets = '', wbRels = '';
+    sheets.forEach(function (s, i) {
+      ct += '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+        '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+      wbSheets += '<sheet name="' + xmlEsc(s.name) + '" sheetId="' + (i + 1) +
+        '" r:id="rId' + (i + 1) + '"/>';
+      wbRels += '<Relationship Id="rId' + (i + 1) +
+        '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' +
+        (i + 1) + '.xml"/>';
+      files.push({ name: 'xl/worksheets/sheet' + (i + 1) + '.xml', data: utf8(sheetXml(s.rows)) });
+    });
+    ct += '</Types>';
+    files.unshift({ name: '[Content_Types].xml', data: utf8(ct) });
+    files.push({
+      name: '_rels/.rels',
+      data: utf8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
+    });
+    files.push({
+      name: 'xl/workbook.xml',
+      data: utf8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + wbSheets + '</sheets></workbook>')
+    });
+    files.push({
+      name: 'xl/_rels/workbook.xml.rels',
+      data: utf8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + wbRels + '</Relationships>')
+    });
+    return zipFiles(files);
+  }
+
+  var RANK_HEADER = ['日期', '频道', '榜单', '分类', '名次', 'bookId', '书名', '作者',
+    '在读', '字数', '作者ID', '最后更新时间'];
+  var DETAIL_HEADER = ['日期', 'bookId', '书名', '原名', '作者', '作者ID', '分类', '标签',
+    '字数', '在读(14天)', '30天阅读', '总阅读', '评分', '状态', '14天书架', '总书架',
+    '播放数', '持续更新天数', '最近更新字数', '创建时间', '最后更新时间'];
+
+  function collectRankRows(date, daily, out) {
+    var ranks = (daily && daily.ranks) || {};
+    ['male', 'female'].forEach(function (g) {
+      var label = (g === 'male') ? '男频' : '女频';
+      var byRank = ranks[g] || {};
+      Object.keys(byRank).forEach(function (rk) {
+        var byCat = byRank[rk] || {};
+        Object.keys(byCat).forEach(function (cat) {
+          (byCat[cat] || []).forEach(function (b) {
+            out.push([date, label, rk, cat, num(b.pos), b.bookId || '', b.bookName || '',
+              b.author || '', num(b.readCount), num(b.wordNumber), b.uid || '', b.lastUpdate || '']);
+          });
+        });
+      });
+    });
+  }
+
+  function collectDetailRows(date, detail, out) {
+    Object.keys(detail || {}).forEach(function (bid) {
+      var d = detail[bid];
+      if (!d || !d.bookName) return;
+      out.push([date, d.bookId || bid, d.bookName, d.originalBookName || '', d.author || '',
+        d.authorId || '', d.category || '', d.tags || '', num(d.wordNumber), num(d.readCount),
+        num(d.readCount30d), num(d.readCountAll), num(d.score), STATUS[d.updateStatus] || '',
+        num(d.addShelf14d), num(d.allBookshelf), num(d.listenCount), num(d.keepUpdateDays),
+        num(d.recentUpdateWord), d.createTime || '', d.lastChapterUpdateTime || '']);
+    });
+  }
+
+  function downloadBlob(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+  }
+
+  function exportDates() {
+    return ((state.index && state.index.dates) || [])
+      .filter(function (d) { return d >= EXPORT_MIN_DATE; })
+      .sort();
+  }
+
+  function openExport() {
+    var avail = exportDates();
+    if (!avail.length) { alert('暂无可导出的数据（最早从 ' + EXPORT_MIN_DATE + ' 开始）。'); return; }
+    var minD = avail[0], maxD = avail[avail.length - 1];
+    ['expStart', 'expEnd'].forEach(function (id) {
+      $(id).min = minD; $(id).max = maxD;
+    });
+    $('expStart').value = minD;
+    $('expEnd').value = maxD;
+    $('exportHint').textContent = '可选范围：' + minD + ' ~ ' + maxD + '（共 ' + avail.length +
+      ' 天有数据）。将导出区间内每天的「全部榜单」与「书籍详情」两个工作表。';
+    $('exportInfo').textContent = '';
+    $('exportBar').hidden = true;
+    $('exportBarFill').style.width = '0';
+    $('exportGo').disabled = false;
+    $('exportCancel').disabled = false;
+    $('exportModal').classList.add('show');
+  }
+
+  function runExport() {
+    var start = $('expStart').value, end = $('expEnd').value;
+    if (!start || !end || start > end) {
+      $('exportInfo').textContent = '请选择正确的日期区间（起始 ≤ 结束）。';
+      return;
+    }
+    var dates = exportDates().filter(function (d) { return d >= start && d <= end; });
+    if (!dates.length) { $('exportInfo').textContent = '该区间内没有可用数据。'; return; }
+
+    $('exportGo').disabled = true;
+    $('exportCancel').disabled = true;
+    $('exportBar').hidden = false;
+
+    var rankRows = [RANK_HEADER], detailRows = [DETAIL_HEADER];
+    var missing = [], done = 0;
+
+    var tasks = dates.map(function (d) {
+      return Promise.all([
+        getJSON('data/daily/' + d + '.json').catch(function () { return null; }),
+        getJSON('data/detail/' + d + '.json').catch(function () { return null; })
+      ]).then(function (res) {
+        if (!res[0]) missing.push(d); else collectRankRows(d, res[0], rankRows);
+        if (res[1]) collectDetailRows(d, res[1], detailRows);
+        done++;
+        $('exportBarFill').style.width = Math.round(done / dates.length * 100) + '%';
+        $('exportInfo').textContent = '正在读取数据：' + done + ' / ' + dates.length + ' 天…';
+      });
+    });
+
+    Promise.all(tasks).then(function () {
+      if (rankRows.length > EXCEL_MAX_ROWS || detailRows.length > EXCEL_MAX_ROWS) {
+        throw new Error('数据行数超过 Excel 上限，请缩小日期范围');
+      }
+      $('exportInfo').textContent = '正在生成 Excel…';
+      return buildXlsx([{ name: '榜单数据', rows: rankRows }, { name: '书籍详情', rows: detailRows }]);
+    }).then(function (blob) {
+      downloadBlob(blob, 'fanqie_榜单_' + start + '_' + end + '.xlsx');
+      $('exportInfo').textContent = '导出完成：' + dates.length + ' 天，榜单 ' +
+        (rankRows.length - 1) + ' 行、详情 ' + (detailRows.length - 1) + ' 行' +
+        (missing.length ? ('；' + missing.length + ' 天无榜单文件已跳过') : '');
+    }).catch(function (e) {
+      $('exportInfo').textContent = '导出失败：' + ((e && e.message) ? e.message : e);
+    }).then(function () {
+      $('exportGo').disabled = false;
+      $('exportCancel').disabled = false;
+      $('exportBar').hidden = true;
+    });
   }
 
   function closeModal() { $('modal').classList.remove('show'); }
