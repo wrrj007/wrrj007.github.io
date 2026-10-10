@@ -10,11 +10,13 @@
 :root{
   --bg:#f5f6f8; --panel:#ffffff; --line:#e4e7ec; --text:#1f2733; --muted:#6b7684;
   --accent:#ff6b35; --accent-soft:#fff1ea; --rank:#8a94a6; --hover:#f7f9fc;
+  --up:#16a34a; --down:#e11d48;
 }
 @media (prefers-color-scheme: dark){
   :root{
     --bg:#12151a; --panel:#1a1f27; --line:#2a313c; --text:#e6eaf0; --muted:#98a2b3;
     --accent:#ff7a45; --accent-soft:#2a1c15; --rank:#7d8797; --hover:#20262f;
+    --up:#34d399; --down:#fb7185;
   }
 }
 *{box-sizing:border-box}
@@ -24,9 +26,16 @@ body{
 }
 header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);
   padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
-.title-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .title-row h1{font-size:18px;margin:0;letter-spacing:1px}
 .title-row .meta{color:var(--muted);font-size:12px}
+/* 顶部角落：不常用的「全部榜单 / 男频总榜 / 女频总榜」 */
+.corner{margin-left:auto;display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+.corner .corner-label{color:var(--muted);font-size:11px;margin-right:2px}
+.corner button{border:1px solid var(--line);background:transparent;color:var(--muted);
+  border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;font-family:inherit}
+.corner button:hover{background:var(--hover);color:var(--text)}
+.corner button.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .tabs{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .tabs button{border:0;background:transparent;color:var(--muted);padding:7px 16px;font-size:14px;cursor:pointer}
@@ -36,17 +45,35 @@ select{background:var(--panel);color:var(--text);border:1px solid var(--line);bo
   padding:6px 10px;font-size:13px;min-width:96px;cursor:pointer}
 .count{color:var(--muted);font-size:12px;margin-left:auto}
 main{padding:12px 16px 40px;max-width:1400px;margin:0 auto}
+#content{overflow-x:auto}
 table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
 th{background:var(--bg);color:var(--muted);font-weight:600;font-size:12px;position:sticky;top:0}
 tbody tr{cursor:pointer;transition:background .12s}
 tbody tr:hover{background:var(--hover)}
-td.name{white-space:normal;min-width:180px;max-width:320px;font-weight:600;color:var(--accent)}
+td.name{white-space:normal;min-width:180px;max-width:300px;font-weight:600;color:var(--accent)}
 td.num{text-align:right;font-variant-numeric:tabular-nums}
 td.cat{white-space:normal;color:var(--muted);font-size:12px}
 td.time{color:var(--muted);font-size:12px}
+td.lvl{color:var(--muted);font-size:12px}
 .rk{display:inline-block;min-width:24px;text-align:center;font-weight:700;color:var(--rank)}
 .rk.top{color:var(--accent)}
+/* 近 14 天趋势迷你图 */
+.trend-cell{display:flex;align-items:center;gap:8px}
+.spark{display:block;flex:0 0 auto}
+.spark polyline{fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.spark circle{opacity:.85}
+.spark.up polyline{stroke:var(--up)}
+.spark.up circle{fill:var(--up)}
+.spark.down polyline{stroke:var(--down)}
+.spark.down circle{fill:var(--down)}
+.spark.flat polyline{stroke:var(--rank)}
+.spark.flat circle{fill:var(--rank)}
+.tdelta{font-size:12px;font-variant-numeric:tabular-nums}
+.tdelta.up{color:var(--up)}
+.tdelta.down{color:var(--down)}
+.tdelta.flat{color:var(--muted)}
+.tno{color:var(--muted)}
 .pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:14px}
 .pager button{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 12px;
   cursor:pointer;color:var(--text)}
@@ -55,13 +82,15 @@ td.time{color:var(--muted);font-size:12px}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:50;
   align-items:center;justify-content:center;padding:16px}
 .modal.show{display:flex}
-.modal-card{background:var(--panel);border-radius:14px;max-width:720px;width:100%;max-height:88vh;
+.modal-card{background:var(--panel);border-radius:14px;max-width:760px;width:100%;max-height:88vh;
   overflow:auto;padding:20px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.35)}
 .modal-card h2{margin:0 0 4px;font-size:20px}
 .modal-card .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.names{color:var(--muted);font-size:12px;margin:0 0 4px}
+.names b{font-weight:500;color:var(--muted)}
 .close{position:absolute;right:14px;top:12px;border:0;background:transparent;font-size:22px;
   cursor:pointer;color:var(--muted);line-height:1}
-.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px 18px;margin-bottom:14px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px 18px;margin-bottom:14px}
 .kv div{display:flex;gap:8px;font-size:13px}
 .kv b{color:var(--muted);font-weight:500;min-width:78px;flex-shrink:0}
 .abstract{background:var(--bg);border-radius:10px;padding:12px;white-space:pre-wrap;
@@ -77,8 +106,9 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
 .head .info h2{margin:0 0 4px}
 .cover.noimg{background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='80'%3E%3Crect width='60' height='80' fill='%23e9edf2'/%3E%3Ctext x='30' y='45' font-size='10' fill='%2399a2b0' text-anchor='middle'%3E无封面%3C/text%3E%3C/svg%3E") center/cover no-repeat;border:1px solid var(--line)}
 .hist{margin:4px 0 16px}
-.hist-title{color:var(--muted);font-size:12px;margin-bottom:8px}
+.hist-title{color:var(--muted);font-size:12px;margin-bottom:8px;display:flex;align-items:center;flex-wrap:wrap}
 .hist-list{display:grid;grid-template-columns:repeat(14,1fr);gap:3px}
+.hist-list.month{grid-template-columns:repeat(16,1fr)}
 .hcell{background:var(--bg);border-radius:5px;padding:6px 2px 4px;text-align:center;display:flex;
   flex-direction:column;align-items:center;justify-content:flex-end;min-height:62px;overflow:hidden}
 .hcell .hv{font-size:10px;font-weight:600;white-space:nowrap}
@@ -86,6 +116,8 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
 .hcell .hbar{width:60%;background:var(--accent);opacity:.7;border-radius:3px 3px 0 0;margin-top:3px;min-height:2px}
 .hcell.miss .hbar{background:transparent;min-height:2px}
 .hcell .hd{font-size:9px;color:var(--muted);margin-top:3px}
+.hist-full{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.hist-month-title{color:var(--muted);font-size:12px;margin:8px 0 6px}
 .pop{position:fixed;z-index:40;width:156px;background:var(--panel);border:1px solid var(--line);
   border-radius:10px;padding:8px;box-shadow:0 14px 34px rgba(0,0,0,.32);pointer-events:none}
 .pop img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px;display:block;background:var(--bg)}
@@ -94,6 +126,7 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
 .btn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;
   padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.tiny{padding:3px 10px;font-size:12px;margin-left:10px}
 .btn:disabled{opacity:.5;cursor:default}
 .pbar{height:6px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:10px}
 .pbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
@@ -102,7 +135,8 @@ a.ext{color:var(--accent);text-decoration:none;font-size:13px}
   border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit}
 a.author{color:var(--accent);text-decoration:none}
 a.author:hover{text-decoration:underline}
-@media (max-width:600px){.head{flex-direction:column}.head .cover{width:110px;flex-basis:auto}}
+@media (max-width:600px){.head{flex-direction:column}.head .cover{width:110px;flex-basis:auto}
+  .hist-list.month{grid-template-columns:repeat(8,1fr)}.corner{margin-left:0}}
 </style>
 </head>
 <body>
@@ -111,21 +145,32 @@ a.author:hover{text-decoration:underline}
   <div class="title-row">
     <h1>🍅 番茄小说榜单</h1>
     <span class="meta" id="meta"></span>
+    <div class="corner" id="cornerTabs">
+      <span class="corner-label">其他总榜</span>
+      <button data-view="all">全部榜单</button>
+      <button data-view="male_all">男频总榜</button>
+      <button data-view="female_all">女频总榜</button>
+    </div>
   </div>
   <div class="controls">
     <div class="tabs" id="tabs">
-      <button data-scope="all" class="active">全部榜单</button>
-      <button data-scope="male">男频总榜</button>
-      <button data-scope="female">女频总榜</button>
+      <button data-view="male_new" class="active">男频新书榜</button>
+      <button data-view="female_new">女频新书榜</button>
+      <button data-view="male_read">男频阅读榜</button>
+      <button data-view="female_read">女频阅读榜</button>
     </div>
     <label class="field">日期
       <select id="dateSelect"></select>
     </label>
     <label class="field">榜单
       <select id="rankSelect">
-        <option value="">全部榜单</option>
-        <option value="阅读榜">阅读榜</option>
-        <option value="新书榜">新书榜</option>
+        <option value="all">总榜</option>
+        <option value="male_new">男频新书榜</option>
+        <option value="female_new">女频新书榜</option>
+        <option value="male_read">男频阅读榜</option>
+        <option value="female_read">女频阅读榜</option>
+        <option value="male_all">男频总榜</option>
+        <option value="female_all">女频总榜</option>
       </select>
     </label>
     <label class="field">分类
@@ -183,13 +228,25 @@ a.author:hover{text-decoration:underline}
   var PAGE_SIZE = 100;
   var STATUS = { 0: '连载', 1: '断更', 2: '完结' };
 
+  // 视图模型：4 个主标签 + 3 个角落总榜；「榜单」下拉与三者联动
+  var VIEWS = {
+    all:         { label: '总榜',       genders: ['male', 'female'], rank: '' },
+    male_new:    { label: '男频新书榜', genders: ['male'],   rank: '新书榜' },
+    female_new:  { label: '女频新书榜', genders: ['female'], rank: '新书榜' },
+    male_read:   { label: '男频阅读榜', genders: ['male'],   rank: '阅读榜' },
+    female_read: { label: '女频阅读榜', genders: ['female'], rank: '阅读榜' },
+    male_all:    { label: '男频总榜',   genders: ['male'],   rank: '' },
+    female_all:  { label: '女频总榜',   genders: ['female'], rank: '' }
+  };
+  var DEFAULT_VIEW = 'male_new';   // 新书榜数据更新鲜，默认展示
+
   var state = {
     index: null,
     daily: null,
     detail: {},
+    updates: null,
     date: '',
-    scope: 'all',
-    rankType: '',
+    view: DEFAULT_VIEW,
     category: '',
     rows: [],
     page: 1
@@ -246,31 +303,133 @@ a.author:hover{text-decoration:underline}
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
   }
 
-  function renderHist(read14, endDate) {
+  // ---------------- 近 14 天「在读」迷你趋势图 ----------------
+  function sparklineHtml(read14, endDate) {
     var map = {};
-    (read14 || []).forEach(function (p) { map[p[0]] = p[1]; });
+    (read14 || []).forEach(function (p) { if (p && p.length >= 2) map[p[0]] = p[1]; });
     var end = parseDate(endDate);
-    if (!end) return '';
-    var cells = [], max = 0, i, d, key, v;
+    if (!end) return '<span class="tno">-</span>';
+    var vals = [], i, d, v;
     for (i = 13; i >= 0; i--) {
       d = new Date(end.getFullYear(), end.getMonth(), end.getDate() - i);
-      key = fmtDate(d);
-      v = map[key];
-      if (typeof v === 'number' && v > max) max = v;
-      cells.push({ key: key, v: (typeof v === 'number' ? v : null) });
+      v = map[fmtDate(d)];
+      vals.push(typeof v === 'number' ? v : null);
     }
-    var html = '<div class="hist"><div class="hist-title">近 14 天「在读」（缺数据以 - 表示）</div>' +
-      '<div class="hist-list">';
-    cells.forEach(function (c) {
+    var nums = vals.filter(function (x) { return x !== null; });
+    if (!nums.length) return '<span class="tno">-</span>';
+
+    var W = 90, H = 26, PAD = 3;
+    var mn = Math.min.apply(null, nums), mx = Math.max.apply(null, nums);
+    var span = (mx - mn) || 1;
+    var xf = function (i) { return PAD + i * (W - 2 * PAD) / 13; };
+    var yf = function (v) { return H - PAD - (v - mn) / span * (H - 2 * PAD); };
+    var segs = [], seg = [], dots = '';
+    for (i = 0; i < 14; i++) {
+      if (vals[i] === null) { if (seg.length) { segs.push(seg); seg = []; } continue; }
+      var x = xf(i).toFixed(1), y = yf(vals[i]).toFixed(1);
+      seg.push(x + ',' + y);
+      dots += '<circle cx="' + x + '" cy="' + y + '" r="1.7"></circle>';
+    }
+    if (seg.length) segs.push(seg);
+    var poly = segs.map(function (s) {
+      return s.length > 1 ? '<polyline points="' + s.join(' ') + '"></polyline>' : '';
+    }).join('');
+
+    var first = nums[0], last = nums[nums.length - 1];
+    var cls = last > first ? 'up' : (last < first ? 'down' : 'flat');
+    var delta;
+    if (nums.length > 1 && first > 0) {
+      var pct = (last - first) / first * 100;
+      delta = '<span class="tdelta ' + cls + '" title="近14天在读变化">' +
+        (pct > 0 ? '+' : '') + pct.toFixed(1) + '%</span>';
+    } else {
+      delta = '<span class="tdelta flat">—</span>';
+    }
+    var tip = '近14天在读：' + nums.length + ' 天有数据，最新 ' + last;
+    return '<div class="trend-cell" title="' + esc(tip) + '">' +
+      '<svg class="spark ' + cls + '" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">' +
+      poly + dots + '</svg>' + delta + '</div>';
+  }
+
+  // 通用条形网格（近14天在读 / 当月更新字数 共用）
+  function cellsHtml(map, startD, endD) {
+    var cells = [], max = 0, cur = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate());
+    while (cur <= endD) {
+      var k = fmtDate(cur);
+      var v = map[k];
+      if (typeof v === 'number' && v > max) max = v;
+      cells.push({ key: k, v: (typeof v === 'number' ? v : null) });
+      cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1);
+    }
+    return cells.map(function (c) {
       var miss = c.v === null;
       var h = (!miss && max > 0) ? Math.max(4, Math.round(c.v / max * 36)) : 0;
-      html += '<div class="hcell' + (miss ? ' miss' : '') + '" title="' + c.key + '：' +
-        (miss ? '未采集' : (c.v) + ' 人') + '">' +
+      return '<div class="hcell' + (miss ? ' miss' : '') + '" title="' + c.key + '：' +
+        (miss ? '未采集' : c.v) + '">' +
         '<span class="hv">' + (miss ? '-' : fmtWan(c.v)) + '</span>' +
         '<span class="hbar" style="height:' + h + 'px"></span>' +
         '<span class="hd">' + c.key.slice(5) + '</span></div>';
+    }).join('');
+  }
+
+  function mapFromPairs(pairs) {
+    var m = {};
+    (pairs || []).forEach(function (p) { if (p && p.length >= 2) m[p[0]] = p[1]; });
+    return m;
+  }
+
+  function renderHist(read14, endDate) {
+    var end = parseDate(endDate);
+    if (!end) return '';
+    var start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 13);
+    return '<div class="hist"><div class="hist-title">近 14 天「在读」（缺数据以 - 表示）</div>' +
+      '<div class="hist-list">' + cellsHtml(mapFromPairs(read14), start, end) + '</div></div>';
+  }
+
+  // ---------------- 当月更新字数 / 往期历史 ----------------
+  function monthKeys(seriesMap) {
+    var set = {};
+    Object.keys(seriesMap).forEach(function (k) { set[k.slice(0, 7)] = 1; });
+    return Object.keys(set).sort().reverse();
+  }
+
+  function updateHistHtml(bookId, endDate) {
+    var tip = '最近更新字数（本月 1 日 → ' + endDate + '，缺数据以 - 表示）';
+    if (!state.updates) {
+      return '<div class="hist" id="updateHist"><div class="hist-title">' + tip +
+        '</div><div class="note">历史数据加载中…</div></div>';
+    }
+    var map = mapFromPairs((state.updates.books || {})[bookId]);
+    if (!Object.keys(map).length) {
+      return '<div class="hist" id="updateHist"><div class="hist-title">' + tip +
+        '</div><div class="note">暂无最近更新字数的历史采集记录。</div></div>';
+    }
+    var end = parseDate(endDate) || new Date();
+    var mStart = new Date(end.getFullYear(), end.getMonth(), 1);
+    var full = monthKeys(map).map(function (mk) {
+      var y = +mk.slice(0, 4), mo = +mk.slice(5, 7);
+      var first = new Date(y, mo - 1, 1);
+      var last = new Date(y, mo, 0);   // 该月最后一天
+      if (fmtDate(last) > fmtDate(end)) last = end;
+      return '<div class="hist-month-title">' + mk + '</div>' +
+        '<div class="hist-list month">' + cellsHtml(map, first, last) + '</div>';
+    }).join('');
+    return '<div class="hist" id="updateHist">' +
+      '<div class="hist-title">' + tip +
+      '<button class="btn tiny" id="histToggle">查看往期历史</button></div>' +
+      '<div class="hist-list month">' + cellsHtml(map, mStart, end) + '</div>' +
+      '<div class="hist-full" id="updateFull" hidden>' + full + '</div></div>';
+  }
+
+  function ensureUpdates(cb) {
+    if (state.updates) { cb(); return; }
+    getJSON('data/updates.json').then(function (u) {
+      state.updates = (u && u.books) ? u : { books: {} };
+      cb();
+    }).catch(function () {
+      state.updates = { books: {} };
+      cb();
     });
-    return html + '</div></div>';
   }
 
   function getJSON(url) {
@@ -303,6 +462,7 @@ a.author:hover{text-decoration:underline}
         state.date = sel.value; state.page = 1; loadDate();
       });
       bindControls();
+      setView(DEFAULT_VIEW);
       loadDate();
     }).catch(function () {
       showEmpty('无法加载数据索引 data/index.json（若用 file:// 打开，请改用本地静态服务器）。');
@@ -312,19 +472,14 @@ a.author:hover{text-decoration:underline}
   function bindControls() {
     $('tabs').addEventListener('click', function (e) {
       var btn = e.target.closest('button');
-      if (!btn) return;
-      Array.prototype.forEach.call($('tabs').children, function (b) {
-        b.classList.toggle('active', b === btn);
-      });
-      state.scope = btn.getAttribute('data-scope');
-      state.category = '';
-      state.page = 1;
-      buildCategoryOptions();
-      render();
+      if (btn) setView(btn.getAttribute('data-view'));
+    });
+    $('cornerTabs').addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (btn) setView(btn.getAttribute('data-view'));
     });
     $('rankSelect').addEventListener('change', function () {
-      state.rankType = this.value; state.category = ''; state.page = 1;
-      buildCategoryOptions(); render();
+      setView(this.value);
     });
     $('catSelect').addEventListener('change', function () {
       state.category = this.value; state.page = 1; render();
@@ -340,6 +495,15 @@ a.author:hover{text-decoration:underline}
     $('modal').addEventListener('click', function (e) {
       if (e.target === $('modal')) closeModal();
     });
+    $('modalBody').addEventListener('click', function (e) {
+      if (e.target && e.target.id === 'histToggle') {
+        var full = $('updateFull');
+        if (!full) return;
+        var show = full.hasAttribute('hidden');
+        if (show) full.removeAttribute('hidden'); else full.setAttribute('hidden', '');
+        e.target.textContent = show ? '收起往期历史' : '查看往期历史';
+      }
+    });
     $('exportBtn').addEventListener('click', openExport);
     $('closeExport').addEventListener('click', closeExport);
     $('exportCancel').addEventListener('click', closeExport);
@@ -351,6 +515,24 @@ a.author:hover{text-decoration:underline}
       if (e.key === 'Escape') { closeModal(); closeExport(); }
     });
   }
+
+  // 视图切换：主标签 / 角落总榜 / 榜单下拉 三者联动
+  function setView(key) {
+    if (!VIEWS[key]) key = DEFAULT_VIEW;
+    state.view = key;
+    state.category = '';
+    state.page = 1;
+    Array.prototype.forEach.call($('tabs').children, function (b) {
+      b.classList.toggle('active', b.getAttribute('data-view') === key);
+    });
+    Array.prototype.forEach.call($('cornerTabs').querySelectorAll('button'), function (b) {
+      b.classList.toggle('active', b.getAttribute('data-view') === key);
+    });
+    $('rankSelect').value = key;
+    if (state.daily) { buildCategoryOptions(); render(); }
+  }
+
+  function currentView() { return VIEWS[state.view] || VIEWS[DEFAULT_VIEW]; }
 
   function closeExport() { $('exportModal').classList.remove('show'); }
 
@@ -392,18 +574,15 @@ a.author:hover{text-decoration:underline}
     });
   }
 
-  function scopes() {
-    return state.scope === 'all' ? ['male', 'female'] : [state.scope];
-  }
-
   function buildCategoryOptions() {
     var set = {};
     var d = state.daily;
+    var v = currentView();
     if (d && d.catalog) {
-      scopes().forEach(function (g) {
+      v.genders.forEach(function (g) {
         var byRank = d.catalog[g] || {};
         Object.keys(byRank).forEach(function (rk) {
-          if (state.rankType && rk !== state.rankType) return;
+          if (v.rank && rk !== v.rank) return;
           (byRank[rk] || []).forEach(function (c) { set[c] = 1; });
         });
       });
@@ -419,11 +598,12 @@ a.author:hover{text-decoration:underline}
   function aggregate() {
     var map = {};
     var d = state.daily;
+    var v = currentView();
     if (d && d.ranks) {
-      scopes().forEach(function (g) {
+      v.genders.forEach(function (g) {
         var byRank = d.ranks[g] || {};
         Object.keys(byRank).forEach(function (rk) {
-          if (state.rankType && rk !== state.rankType) return;
+          if (v.rank && rk !== v.rank) return;
           var byCat = byRank[rk] || {};
           Object.keys(byCat).forEach(function (cat) {
             if (state.category && cat !== state.category) return;
@@ -449,7 +629,13 @@ a.author:hover{text-decoration:underline}
         });
       });
     }
-    var rows = Object.keys(map).map(function (k) { return map[k]; });
+    var rows = Object.keys(map).map(function (k) {
+      var r = map[k];
+      var det = state.detail[r.bookId] || {};
+      r.authorLevel = det.authorLevel || '';
+      r.read14 = det.read14 || [];
+      return r;
+    });
     rows.sort(function (a, b) { return (b.readCount || 0) - (a.readCount || 0); });
     return rows;
   }
@@ -472,8 +658,9 @@ a.author:hover{text-decoration:underline}
     var slice = state.rows.slice(start, start + PAGE_SIZE);
 
     var html = '<table><thead><tr>' +
-      '<th>排名</th><th>书名</th><th>作者</th><th>在读</th><th>字数</th>' +
-      '<th>分类</th><th>榜单</th><th>最后更新</th></tr></thead><tbody>';
+      '<th>排名</th><th>书名</th><th>作者</th><th>作者等级</th><th>在读</th>' +
+      '<th>近14天趋势</th><th>字数</th><th>分类</th><th>榜单</th><th>最后更新</th>' +
+      '</tr></thead><tbody>';
 
     slice.forEach(function (r, i) {
       var rank = start + i + 1;
@@ -485,7 +672,9 @@ a.author:hover{text-decoration:underline}
         '<td><span class="rk' + (rank <= 3 ? ' top' : '') + '">' + rank + '</span></td>' +
         '<td class="name" title="' + esc(r.bookName) + '">' + esc(r.bookName) + '</td>' +
         '<td>' + authorLink(r.author, r.uid) + '</td>' +
+        '<td class="lvl">' + (r.authorLevel ? esc(r.authorLevel) : '-') + '</td>' +
         '<td class="num">' + fmtWan(r.readCount) + '</td>' +
+        '<td>' + sparklineHtml(r.read14, state.date) + '</td>' +
         '<td class="num">' + fmtWan(r.wordNumber) + '</td>' +
         '<td class="cat">' + esc(catTxt) + '</td>' +
         '<td class="cat">' + esc(Object.keys(rankTypes).join('/')) + '</td>' +
@@ -559,11 +748,21 @@ a.author:hover{text-decoration:underline}
     var name = d.bookName || (row && row.bookName) || bookId;
     var hasDetail = !!d.bookName;
 
+    var names = '';
+    if (hasDetail) {
+      var orig = d.originalBookName || '';
+      var short = d.bookShortName || '';
+      if (orig || short) {
+        names = '<div class="names"><b>原书名：</b>' + (orig ? esc(orig) : '-') +
+          '　<b>短书名：</b>' + (short ? esc(short) : '-') + '</div>';
+      }
+    }
+
     var head =
       '<div class="head">' +
       '<img class="cover' + (cover ? '' : ' noimg') + '" id="covImg" alt="' + esc(name) + '">' +
       '<div class="info">' +
-      '<h2>' + esc(name) + '</h2>' +
+      '<h2>' + esc(name) + '</h2>' + names +
       '<div class="sub">' + (authorLink(d.author || (row && row.author) || '',
         d.authorId || (row && row.uid)) || '') +
       (d.category ? '　·　' + esc(d.category) : '') +
@@ -572,7 +771,7 @@ a.author:hover{text-decoration:underline}
       (hasDetail ? fullKv(d) : rankKv(row)) +
       '</div></div>';
 
-    var tail = renderHist(d.read14, state.date) +
+    var tail = renderHist(d.read14, state.date) + updateHistHtml(bookId, state.date) +
       (hasDetail
         ? ((d.tags ? '<div class="tags">' + tagsHtml(d.tags) + '</div>' : '') +
            '<div class="abstract">' + esc(d.abstract || '暂无简介') + '</div>')
@@ -582,6 +781,14 @@ a.author:hover{text-decoration:underline}
     $('pop').hidden = true;
     setCover($('covImg'), cover);
     $('modal').classList.add('show');
+
+    // 历史更新字数按需懒加载，加载完只刷新对应区块
+    if (!state.updates) {
+      ensureUpdates(function () {
+        if (!$('updateHist') || $('modal').className.indexOf('show') < 0) return;
+        $('updateHist').outerHTML = updateHistHtml(bookId, state.date);
+      });
+    }
   }
 
   function tagsHtml(tags) {
@@ -596,12 +803,16 @@ a.author:hover{text-decoration:underline}
       kv('总阅读', fmtWan(d.readCountAll)) +
       kv('字数', fmtWan(d.wordNumber)) +
       kv('评分', d.score) +
+      kv('点评人数', fmtWan(d.scoreCnt)) +
+      kv('催更', fmtWan(d.urgeCount)) +
       kv('状态', STATUS[d.updateStatus] || '—') +
+      kv('作者等级', d.authorLevel || '—') +
+      kv('作者开书', (d.authorBookCount ? d.authorBookCount + ' 本' : '—')) +
       kv('14天书架', fmtWan(d.addShelf14d)) +
       kv('总书架', fmtWan(d.allBookshelf)) +
       kv('播放数', fmtWan(d.listenCount)) +
       kv('持续更新', (d.keepUpdateDays || 0) + ' 天') +
-      kv('最近更新字数', fmtWan(d.recentUpdateWord)) +
+      kv('最近更新字数', d.recentUpdateWord == null ? '—' : fmtWan(d.recentUpdateWord)) +
       kvHtml('作者ID', authorIdLink(d.authorId)) +
       kv('创建时间', d.createTime || '') +
       kv('最后更新时间', d.lastChapterUpdateTime || '') +
@@ -679,11 +890,11 @@ a.author:hover{text-decoration:underline}
       for (var c = 0; c < row.length; c++) {
         var v = row[c];
         if (v === null || v === undefined || v === '') continue;
-        var ref = colName(c) + (r + 1);
+        var rref = colName(c) + (r + 1);
         if (typeof v === 'number' && isFinite(v)) {
-          out.push('<c r="' + ref + '"><v>' + v + '</v></c>');
+          out.push('<c r="' + rref + '"><v>' + v + '</v></c>');
         } else {
-          out.push('<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEsc(v) + '</t></is></c>');
+          out.push('<c r="' + rref + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEsc(v) + '</t></is></c>');
         }
       }
       out.push('</row>');
@@ -815,7 +1026,8 @@ a.author:hover{text-decoration:underline}
 
   var RANK_HEADER = ['日期', '频道', '榜单', '分类', '名次', 'bookId', '书名', '作者',
     '在读', '字数', '作者ID', '最后更新时间'];
-  var DETAIL_HEADER = ['日期', 'bookId', '书名', '原名', '作者', '作者ID', '分类', '标签',
+  var DETAIL_HEADER = ['日期', 'bookId', '书名', '短名', '原名', '作者', '作者ID',
+    '作者等级', '作者开书', '点评人数', '催更', '分类', '标签',
     '字数', '在读(14天)', '30天阅读', '总阅读', '评分', '状态', '14天书架', '总书架',
     '播放数', '持续更新天数', '最近更新字数', '创建时间', '最后更新时间'];
 
@@ -840,8 +1052,10 @@ a.author:hover{text-decoration:underline}
     Object.keys(detail || {}).forEach(function (bid) {
       var d = detail[bid];
       if (!d || !d.bookName) return;
-      out.push([date, d.bookId || bid, d.bookName, d.originalBookName || '', d.author || '',
-        d.authorId || '', d.category || '', d.tags || '', num(d.wordNumber), num(d.readCount),
+      out.push([date, d.bookId || bid, d.bookName, d.bookShortName || '',
+        d.originalBookName || '', d.author || '', d.authorId || '',
+        d.authorLevel || '', num(d.authorBookCount), num(d.scoreCnt), num(d.urgeCount),
+        d.category || '', d.tags || '', num(d.wordNumber), num(d.readCount),
         num(d.readCount30d), num(d.readCountAll), num(d.score), STATUS[d.updateStatus] || '',
         num(d.addShelf14d), num(d.allBookshelf), num(d.listenCount), num(d.keepUpdateDays),
         num(d.recentUpdateWord), d.createTime || '', d.lastChapterUpdateTime || '']);
@@ -877,7 +1091,6 @@ a.author:hover{text-decoration:underline}
     $('exportHint').textContent = '可选范围：' + minD + ' ~ ' + maxD + '（共 ' + avail.length +
       ' 天有数据）。将导出区间内每天的「全部榜单」与「书籍详情」两个工作表。';
     $('exportInfo').textContent = '';
-    $('exportBar').hidden = true;
     $('exportBarFill').style.width = '0';
     $('exportGo').disabled = false;
     $('exportCancel').disabled = false;

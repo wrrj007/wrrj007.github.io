@@ -12,10 +12,6 @@ on:
         description: '每个榜单保存前多少本'
         required: false
         default: '40'
-      detail_top:
-        description: '每个榜单抓取详情的前多少本'
-        required: false
-        default: '30'
       keep_days:
         description: '历史数据保留天数（0=永久保留）'
         required: false
@@ -35,7 +31,7 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 240
     steps:
       - name: 检出仓库
         uses: actions/checkout@v4
@@ -45,20 +41,43 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: 安装 Java 17（本地签名服务依赖）
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: 安装依赖
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: 启动本地签名服务（详情兜底 + 作者等级）
+        run: |
+          cd scripts/fqsign
+          nohup java -cp ".:NovelData.jar" FQSignService > /tmp/fqsign.log 2>&1 &
+          echo $! > /tmp/fqsign.pid
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8082/api/fq-sign/health | grep -q UP; then
+              echo "✅ 签名服务已就绪"; exit 0
+            fi
+            sleep 2
+          done
+          echo "⚠️ 签名服务未就绪，本次将仅使用外部详情接口（作者等级可能为空）"
+          tail -n 30 /tmp/fqsign.log || true
+
       - name: 运行采集
         env:
-          FANQIE_SAVE_TOP: ${{ github.event.inputs.save_top || '30' }}
-          FANQIE_DETAIL_TOP: ${{ github.event.inputs.detail_top || '20' }}
-          FANQIE_KEEP_DAYS: ${{ github.event.inputs.keep_days || '45' }}
+          FANQIE_SAVE_TOP: ${{ github.event.inputs.save_top || '40' }}
+          FANQIE_KEEP_DAYS: ${{ github.event.inputs.keep_days || '0' }}
           FANQIE_DATE: ${{ github.event.inputs.date }}
           # 定时任务：目标日期数据已存在则跳过（23:00 兜底重跑用）；手动触发则强制执行
           FANQIE_SKIP_IF_EXISTS: ${{ github.event_name == 'schedule' && '1' || '0' }}
         run: python scripts/fanqie_daily.py
+
+      - name: 停止签名服务
+        if: always()
+        run: kill $(cat /tmp/fqsign.pid) 2>/dev/null || true
 
       - name: 提交并推送数据
         run: |
