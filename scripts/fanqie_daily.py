@@ -37,6 +37,7 @@
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import random
@@ -512,6 +513,34 @@ def read_json(path: str, default: Any) -> Any:
         return default
 
 
+_remote_fetched = [False]
+
+
+def remote_has_path(root_dir: str, abs_path: str) -> bool:
+    """检查远端 origin/main 上是否已存在某文件。
+
+    定时任务检出的是「触发时刻的 SHA」，看不到同一时段另一次运行（22:30 主任务 /
+    23:00 兜底任务）刚刚推送的提交，因此兜底任务会重复采集一整天、最后在 push 时
+    被拒而失败。这里显式 fetch 远端后按引用判断，让兜底任务能正确跳过。
+    """
+    try:
+        rel = os.path.relpath(abs_path, root_dir).replace(os.sep, "/")
+    except Exception:
+        return False
+    try:
+        if not _remote_fetched[0]:
+            _remote_fetched[0] = True
+            subprocess.run(["git", "fetch", "--depth=1", "origin", "main"],
+                           cwd=root_dir, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=180)
+        r = subprocess.run(["git", "cat-file", "-e", "origin/main:" + rel],
+                           cwd=root_dir, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=60)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
 def update_index(data_dir: str, stats: Dict):
     """扫描 daily 目录重建日期索引"""
     daily_dir = os.path.join(data_dir, "daily")
@@ -699,8 +728,13 @@ def main():
     if skip_if_exists:
         has_daily = os.path.exists(daily_path) and os.path.getsize(daily_path) > 0
         has_detail = os.path.exists(detail_path) and os.path.getsize(detail_path) > 0
+        # 本地工作区是「触发时刻的 SHA」，看不到主任务刚推送的提交；再查一次远端
+        if not has_daily:
+            has_daily = remote_has_path(root_dir, daily_path)
+        if not has_detail:
+            has_detail = remote_has_path(root_dir, detail_path)
         if has_daily and (no_detail or has_detail):
-            print("[跳过] %s 的榜单与详情数据均已存在，无需重复采集" % date_str)
+            print("[跳过] %s 的榜单与详情数据均已存在（本地或远端），无需重复采集" % date_str)
             return
         if has_daily:
             print("[续采] %s 榜单已存在但缺少详情，重新采集以补齐详情" % date_str)

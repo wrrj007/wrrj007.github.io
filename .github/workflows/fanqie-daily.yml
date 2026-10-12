@@ -15,7 +15,7 @@ on:
       keep_days:
         description: '历史数据保留天数（0=永久保留）'
         required: false
-        default: '0'
+        default: '30'
       date:
         description: '数据归属日期(YYYY-MM-DD)，留空则自动推算'
         required: false
@@ -69,7 +69,7 @@ jobs:
       - name: 运行采集
         env:
           FANQIE_SAVE_TOP: ${{ github.event.inputs.save_top || '40' }}
-          FANQIE_KEEP_DAYS: ${{ github.event.inputs.keep_days || '0' }}
+          FANQIE_KEEP_DAYS: ${{ github.event.inputs.keep_days || '30' }}
           FANQIE_DATE: ${{ github.event.inputs.date }}
           # 定时任务：目标日期数据已存在则跳过（23:00 兜底重跑用）；手动触发则强制执行
           FANQIE_SKIP_IF_EXISTS: ${{ github.event_name == 'schedule' && '1' || '0' }}
@@ -86,7 +86,19 @@ jobs:
           git add fanqie/data
           if git diff --cached --quiet; then
             echo "没有数据变化，跳过提交"
-          else
-            git commit -m "chore(data): 番茄榜单采集 $(date -u +%Y-%m-%d)"
-            git push
+            exit 0
           fi
+          git commit -m "chore(data): 番茄榜单采集 $(date -u +%Y-%m-%d)"
+          # 检出的是「触发时刻的 SHA」：此后只要有人（或另一次定时任务）向 main 推送过，
+          # 直接 push 就会因 non-fast-forward 被拒。这里 rebase 远端后重试，避免整天的数据丢失。
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "✅ 数据已推送"
+              exit 0
+            fi
+            echo "⚠️ 推送被拒（第 $i 次），rebase 远端后重试…"
+            git pull --rebase --autostash origin main || { git rebase --abort 2>/dev/null || true; }
+            sleep 5
+          done
+          echo "❌ 多次重试后仍无法推送"
+          exit 1
