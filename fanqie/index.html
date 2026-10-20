@@ -20,6 +20,9 @@
   }
 }
 *{box-sizing:border-box}
+/* 兜底：.filters / .pager 等类选择器里设了 display，会盖掉 UA 的 [hidden]{display:none}，
+   导致 hidden 属性失效（筛选栏收起不了、单页时翻页条仍显示）。这里显式保底。 */
+[hidden]{display:none !important}
 body{
   margin:0;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
@@ -163,9 +166,72 @@ a.author:hover{text-decoration:underline}
 .card .cstat{display:flex;justify-content:space-between;gap:6px;font-size:11px;color:var(--muted);
   font-variant-numeric:tabular-nums;border-top:1px dashed var(--line);padding-top:5px;margin-top:2px}
 .card .cstat b{font-weight:600;color:var(--text)}
-@media (max-width:600px){.head{flex-direction:column}.head .cover{width:110px;flex-basis:auto}
-  .hist-list.month{grid-template-columns:repeat(8,1fr)}.corner{margin-left:0}
-  .cards{grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}}
+.sel-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+/* ---------------- 搜索 / 区间筛选 ---------------- */
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.filters input{background:var(--panel);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;width:132px;min-width:0}
+.filters input[type=number]{width:74px;text-align:center}
+.filters .rng{display:inline-flex;align-items:center;gap:4px}
+.filters .sep{color:var(--muted);font-size:12px}
+/* ---------------- 移动端列表（堆叠行，内容自适应不横向溢出） ---------------- */
+.mlist{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;overflow:hidden}
+.mrow{display:flex;gap:10px;align-items:center;padding:10px 12px;
+  border-bottom:1px solid var(--line);cursor:pointer}
+.mrow:last-child{border-bottom:0}
+.mrow:hover{background:var(--hover)}
+.mrow .rk{flex:0 0 auto}
+.mrow .mmid{flex:1 1 auto;min-width:0}
+.mtitle{font-weight:600;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.msub{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mstat{flex:0 0 auto;text-align:right;font-size:11px;color:var(--muted);line-height:1.55;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.mstat b{color:var(--text);font-weight:600}
+@media (max-width:600px){
+  /* 顶部压缩：更新详情移入日期下拉可查，角落总榜仍可在「榜单」下拉中选择 */
+  header{padding:10px 12px}
+  .title-row{margin-bottom:8px;gap:8px;flex-wrap:nowrap}
+  .title-row h1{font-size:15px;white-space:nowrap}
+  .title-row .meta{flex:1 1 auto;min-width:0;font-size:10px;text-align:right;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .corner{display:none}
+  .controls{gap:8px}
+  /* 榜单导航固定到屏幕底部，不再占用顶部空间 */
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;width:100%;
+    background:var(--panel);border:0;border-top:1px solid var(--line);border-radius:0;
+    padding:5px;padding-bottom:calc(5px + env(safe-area-inset-bottom));
+    box-shadow:0 -2px 12px rgba(0,0,0,.08)}
+  .tabs button{flex:1 1 0;min-width:0;padding:9px 2px;font-size:12px;border-radius:6px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body{padding-bottom:64px}
+  main{padding:10px 12px 20px}
+  .sel-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%}
+  .sel-row .lb{display:none}
+  .sel-row select{width:100%;min-width:0;padding:7px 6px;font-size:12px}
+  .btn-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%}
+  .btn-row .btn{padding:7px 4px;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .btn-row .count{grid-column:1/-1;text-align:right;margin:0;font-size:11px}
+  .filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+  .filters .field{flex-direction:column;align-items:stretch;gap:3px}
+  .filters .lb{font-size:11px}
+  .filters input,.filters input[type=number]{width:100%}
+  .filters .rng{width:100%;justify-content:space-between}
+  .filters #fClear{grid-column:1/-1}
+  .head{flex-direction:column}
+  .head .cover{width:110px;flex-basis:auto}
+  .hist-list.month{grid-template-columns:repeat(8,1fr)}
+  .cards{grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+  .modal-card{padding:16px 14px}
+  .kv{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:6px 12px}
+  .kv b{min-width:64px}
+}
+@media (max-width:360px){
+  .mrow .mstat{display:none}
+}
 </style>
 </head>
 <body>
@@ -188,26 +254,45 @@ a.author:hover{text-decoration:underline}
       <button data-view="male_read">男频阅读榜</button>
       <button data-view="female_read">女频阅读榜</button>
     </div>
-    <label class="field">日期
-      <select id="dateSelect"></select>
-    </label>
-    <label class="field">榜单
-      <select id="rankSelect">
-        <option value="all">总榜</option>
-        <option value="male_new">男频新书榜</option>
-        <option value="female_new">女频新书榜</option>
-        <option value="male_read">男频阅读榜</option>
-        <option value="female_read">女频阅读榜</option>
-        <option value="male_all">男频总榜</option>
-        <option value="female_all">女频总榜</option>
-      </select>
-    </label>
-    <label class="field">分类
-      <select id="catSelect"><option value="">全部分类</option></select>
-    </label>
-    <button class="btn" id="uiToggle">图文模式</button>
-    <button class="btn primary" id="exportBtn">导出 Excel</button>
-    <span class="count" id="count"></span>
+    <div class="sel-row">
+      <label class="field"><span class="lb">日期</span>
+        <select id="dateSelect"></select>
+      </label>
+      <label class="field"><span class="lb">榜单</span>
+        <select id="rankSelect">
+          <option value="all">总榜</option>
+          <option value="male_new">男频新书榜</option>
+          <option value="female_new">女频新书榜</option>
+          <option value="male_read">男频阅读榜</option>
+          <option value="female_read">女频阅读榜</option>
+          <option value="male_all">男频总榜</option>
+          <option value="female_all">女频总榜</option>
+        </select>
+      </label>
+      <label class="field"><span class="lb">分类</span>
+        <select id="catSelect"><option value="">全部分类</option></select>
+      </label>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="filterToggle">搜索筛选</button>
+      <button class="btn" id="uiToggle">图文模式</button>
+      <button class="btn" id="waterfallToggle">瀑布流</button>
+      <button class="btn primary" id="exportBtn">导出 Excel</button>
+      <span class="count" id="count"></span>
+    </div>
+  </div>
+  <div class="filters" id="filters" hidden>
+    <label class="field"><span class="lb">书名</span>
+      <input type="search" id="fName" placeholder="搜索书名关键词" autocomplete="off"></label>
+    <label class="field"><span class="lb">笔名</span>
+      <input type="search" id="fAuthor" placeholder="搜索作者笔名" autocomplete="off"></label>
+    <label class="field"><span class="lb">在读（万）</span>
+      <span class="rng"><input type="number" id="fReadMin" min="0" step="1" placeholder="最小">
+      <span class="sep">~</span><input type="number" id="fReadMax" min="0" step="1" placeholder="最大"></span></label>
+    <label class="field"><span class="lb">字数（万）</span>
+      <span class="rng"><input type="number" id="fWordMin" min="0" step="1" placeholder="最小">
+      <span class="sep">~</span><input type="number" id="fWordMax" min="0" step="1" placeholder="最大"></span></label>
+    <button class="btn" id="fClear">清除筛选</button>
   </div>
 </header>
 
@@ -279,10 +364,25 @@ a.author:hover{text-decoration:underline}
     date: '',
     view: DEFAULT_VIEW,
     mode: 'list',      // 'list' = 列表模式（默认）；'grid' = 图文模式
+    waterfall: false,  // true = 瀑布流（滚动/按钮追加）；false = 传统分页
+    shown: 0,          // 瀑布流模式下已追加的条数
     category: '',
+    // 筛选条件（fRead*/fWord* 均已换算为真实数量）
+    fName: '', fAuthor: '',
+    fReadMin: null, fReadMax: null, fWordMin: null, fWordMax: null,
     rows: [],
     page: 1
   };
+
+  // 视口宽度（用 clientWidth 以排除滚动条占位）
+  function vw() {
+    return document.documentElement.clientWidth || window.innerWidth || 0;
+  }
+  // 移动端：切换为底部导航 + 紧凑头部 + 筛选默认收起（与 CSS 600px 断点一致）
+  function isMobile() { return vw() <= 600; }
+  // 窄屏：10 列表格约需 960px 才放得下，窄于此改用堆叠行，避免横向溢出被裁切
+  var NARROW_TABLE = 980;
+  function isNarrow() { return vw() <= NARROW_TABLE; }
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -476,7 +576,11 @@ a.author:hover{text-decoration:underline}
     $('empty').textContent = msg;
     $('content').innerHTML = '';
     $('pager').hidden = true;
+    $('prev').hidden = false;
+    $('next').hidden = false;
   }
+
+  var scrollLock = false;   // 瀑布流滚动追加的节流开关
 
   // ---------------- 初始化 ----------------
   // 把顶部 header 的实际高度写入 CSS 变量 --head-h，供表头吸顶定位使用
@@ -487,9 +591,25 @@ a.author:hover{text-decoration:underline}
     }
   }
 
-  function init() {
+  // 窗口尺寸变化：重测头部高度；跨越断点时重渲染（表格 ↔ 堆叠行）
+  var wasMobile = null, wasNarrow = null, resizeTimer = null;
+  function onResize() {
     syncHeadHeight();
-    window.addEventListener('resize', syncHeadHeight);
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      var m = isMobile(), n = isNarrow();
+      if (m !== wasMobile || n !== wasNarrow) {
+        wasMobile = m; wasNarrow = n;
+        if (state.daily) render();
+      }
+    }, 150);
+  }
+
+  function init() {
+    wasMobile = isMobile();
+    wasNarrow = isNarrow();
+    syncHeadHeight();
+    window.addEventListener('resize', onResize);
     getJSON('data/index.json').then(function (idx) {
       state.index = idx;
       var dates = idx.dates || [];
@@ -501,10 +621,17 @@ a.author:hover{text-decoration:underline}
       state.date = dates[0];
       sel.value = state.date;
       sel.addEventListener('change', function () {
-        state.date = sel.value; state.page = 1; loadDate();
+        state.date = sel.value; state.page = 1; state.shown = 0; loadDate();
       });
       bindControls();
+      // 桌面端默认展开筛选栏，移动端默认收起（节省屏幕高度）
+      if (!isMobile()) {
+        $('filters').removeAttribute('hidden');
+        $('filterToggle').textContent = '收起筛选';
+        $('filterToggle').classList.add('active');
+      }
       setView(DEFAULT_VIEW);
+      syncHeadHeight();
       loadDate();
     }).catch(function () {
       showEmpty('无法加载数据索引 data/index.json（若用 file:// 打开，请改用本地静态服务器）。');
@@ -524,22 +651,71 @@ a.author:hover{text-decoration:underline}
       setView(this.value);
     });
     $('catSelect').addEventListener('change', function () {
-      state.category = this.value; state.page = 1; render();
+      state.category = this.value; state.page = 1;
+      state.shown = 0; render();
     });
+    // 行 / 卡片点击统一走事件委托，瀑布流追加内容无需重新绑定
+    $('content').addEventListener('click', function (e) {
+      var el = e.target.closest ? e.target.closest('[data-id]') : null;
+      if (!el) return;
+      if (e.target.closest('a')) return;   // 点作者链接时不弹窗
+      openDetail(el.getAttribute('data-id'));
+    });
+    bindRowHover();   // 悬停封面预览（仅在支持 hover 的设备上生效，内部有幂等保护）
     $('prev').addEventListener('click', function () {
+      if (state.waterfall) return;   // 瀑布流模式下只追加，不回退
       if (state.page > 1) { state.page--; render(); window.scrollTo(0, 0); }
     });
     $('next').addEventListener('click', function () {
+      if (state.waterfall) { appendMore(); return; }
       var max = Math.max(1, Math.ceil(state.rows.length / pageSize()));
       if (state.page < max) { state.page++; render(); window.scrollTo(0, 0); }
     });
-    // 列表 / 图文 展示模式切换（筛选条件与分页保留，仅切换渲染方式）
+    // 列表 / 图文 展示模式切换（筛选条件保留，仅切换渲染方式）
     $('uiToggle').addEventListener('click', function () {
       state.mode = (state.mode === 'grid') ? 'list' : 'grid';
-      state.page = 1;
+      state.page = 1; state.shown = 0;
       render();
       window.scrollTo(0, 0);
     });
+    // 瀑布流 / 分页 切换
+    $('waterfallToggle').addEventListener('click', function () {
+      state.waterfall = !state.waterfall;
+      state.page = 1; state.shown = 0;
+      render();
+      window.scrollTo(0, 0);
+    });
+    // 搜索筛选：展开/收起（桌面端默认展开，移动端默认收起以省出屏幕）
+    $('filterToggle').addEventListener('click', function () {
+      var f = $('filters');
+      var show = f.hasAttribute('hidden');
+      if (show) f.removeAttribute('hidden'); else f.setAttribute('hidden', '');
+      this.textContent = show ? '收起筛选' : '搜索筛选';
+      this.classList.toggle('active', show);
+      syncHeadHeight();
+    });
+    $('fClear').addEventListener('click', clearFilters);
+    // 搜索框实时筛选；为减少重绘，输入时做轻量防抖
+    var fTimer = null;
+    ['fName', 'fAuthor'].forEach(function (id) {
+      $(id).addEventListener('input', function () {
+        clearTimeout(fTimer);
+        fTimer = setTimeout(applyFilters, 220);
+      });
+    });
+    ['fReadMin', 'fReadMax', 'fWordMin', 'fWordMax'].forEach(function (id) {
+      $(id).addEventListener('change', applyFilters);
+    });
+    // 瀑布流：滚动到底部附近自动追加
+    window.addEventListener('scroll', function () {
+      if (!state.waterfall || scrollLock) return;
+      var doc = document.documentElement;
+      if (window.innerHeight + window.scrollY < doc.scrollHeight - 500) return;
+      if (appendMore()) {
+        scrollLock = true;
+        setTimeout(function () { scrollLock = false; }, 180);
+      }
+    }, { passive: true });
     $('closeModal').addEventListener('click', closeModal);
     $('modal').addEventListener('click', function (e) {
       if (e.target === $('modal')) closeModal();
@@ -571,6 +747,7 @@ a.author:hover{text-decoration:underline}
     state.view = key;
     state.category = '';
     state.page = 1;
+    state.shown = 0;
     Array.prototype.forEach.call($('tabs').children, function (b) {
       b.classList.toggle('active', b.getAttribute('data-view') === key);
     });
@@ -643,6 +820,53 @@ a.author:hover{text-decoration:underline}
     sel.value = state.category || '';
   }
 
+  // ---------------- 搜索 / 区间筛选 ----------------
+  function hasFilters() {
+    return !!(state.fName || state.fAuthor ||
+      state.fReadMin != null || state.fReadMax != null ||
+      state.fWordMin != null || state.fWordMax != null);
+  }
+
+  // 单本是否命中当前筛选条件（书名/笔名为包含匹配；区间单位为「万」，已在 applyFilters 换算）
+  function matchFilters(r) {
+    if (state.fName && String(r.bookName || '').toLowerCase().indexOf(state.fName) < 0) return false;
+    if (state.fAuthor && String(r.author || '').toLowerCase().indexOf(state.fAuthor) < 0) return false;
+    if (state.fReadMin != null && (r.readCount || 0) < state.fReadMin) return false;
+    if (state.fReadMax != null && (r.readCount || 0) > state.fReadMax) return false;
+    if (state.fWordMin != null && (r.wordNumber || 0) < state.fWordMin) return false;
+    if (state.fWordMax != null && (r.wordNumber || 0) > state.fWordMax) return false;
+    return true;
+  }
+
+  function numFromInput(id) {
+    var v = String($(id).value || '').trim();
+    if (v === '') return null;
+    var n = parseFloat(v);
+    return isFinite(n) ? n : null;
+  }
+
+  function applyFilters() {
+    state.fName = String($('fName').value || '').trim().toLowerCase();
+    state.fAuthor = String($('fAuthor').value || '').trim().toLowerCase();
+    var rm = numFromInput('fReadMin'), rx = numFromInput('fReadMax');
+    var wm = numFromInput('fWordMin'), wx = numFromInput('fWordMax');
+    // 输入单位是「万」，换算成真实数量再比较
+    state.fReadMin = rm == null ? null : rm * 10000;
+    state.fReadMax = rx == null ? null : rx * 10000;
+    state.fWordMin = wm == null ? null : wm * 10000;
+    state.fWordMax = wx == null ? null : wx * 10000;
+    state.page = 1;
+    state.shown = 0;
+    render();
+  }
+
+  function clearFilters() {
+    ['fName', 'fAuthor', 'fReadMin', 'fReadMax', 'fWordMin', 'fWordMax'].forEach(function (id) {
+      $(id).value = '';
+    });
+    applyFilters();
+  }
+
   // ---------------- 聚合 ----------------
   function aggregate() {
     var map = {};
@@ -686,7 +910,7 @@ a.author:hover{text-decoration:underline}
       return r;
     });
     rows.sort(function (a, b) { return (b.readCount || 0) - (a.readCount || 0); });
-    return rows;
+    return rows.filter(matchFilters);
   }
 
   function pageSize() { return state.mode === 'grid' ? GRID_PAGE_SIZE : PAGE_SIZE; }
@@ -695,9 +919,14 @@ a.author:hover{text-decoration:underline}
     if (!state.daily) return;
     state.rows = aggregate();
     var total = state.rows.length;
-    $('count').textContent = '共 ' + total + ' 本';
+    $('count').textContent = '共 ' + total + ' 本' + (hasFilters() ? '（已筛选）' : '');
     if ($('uiToggle')) {
       $('uiToggle').textContent = (state.mode === 'grid') ? '列表模式' : '图文模式';
+      $('uiToggle').classList.toggle('active', state.mode === 'grid');
+    }
+    if ($('waterfallToggle')) {
+      $('waterfallToggle').textContent = state.waterfall ? '分页模式' : '瀑布流';
+      $('waterfallToggle').classList.toggle('active', state.waterfall);
     }
 
     if (!total) {
@@ -706,44 +935,90 @@ a.author:hover{text-decoration:underline}
     }
     $('empty').hidden = true;
 
-    var ps = pageSize();
-    var maxPage = Math.max(1, Math.ceil(total / ps));
-    if (state.page > maxPage) state.page = maxPage;
-    var start = (state.page - 1) * ps;
-    var slice = state.rows.slice(start, start + ps);
-
-    if (state.mode === 'grid') renderGrid(slice, start);
-    else renderList(slice, start);
-
-    $('pager').hidden = maxPage <= 1;
-    $('pageInfo').textContent = '第 ' + state.page + ' / ' + maxPage + ' 页';
-
     state.byId = {};
     state.rows.forEach(function (r) { state.byId[r.bookId] = r; });
 
-    // 列表行与图文卡片共用同一套点击逻辑（点作者链接时不弹窗）
-    Array.prototype.forEach.call($('content').querySelectorAll('[data-id]'), function (el) {
-      el.addEventListener('click', function (e) {
-        if (e.target.closest && e.target.closest('a')) return;
-        openDetail(el.getAttribute('data-id'));
-      });
-    });
-    bindRowHover();
+    if (state.waterfall) {
+      // 瀑布流：清空后追加首页，后续由滚动 / 「加载更多」继续追加
+      state.shown = 0;
+      $('content').innerHTML = '';
+      appendMore();
+    } else {
+      var ps = pageSize();
+      var maxPage = Math.max(1, Math.ceil(total / ps));
+      if (state.page > maxPage) state.page = maxPage;
+      var start = (state.page - 1) * ps;
+      renderSlice(state.rows.slice(start, start + ps), start, true);
+      updatePager();
+    }
   }
 
-  // ---------------- 列表模式 ----------------
-  function renderList(slice, start) {
-    var html = '<table><thead><tr>' +
-      '<th>排名</th><th>书名</th><th>作者</th><th>作者等级</th><th>在读</th>' +
-      '<th>近14天趋势</th><th>字数</th><th>分类</th><th>榜单</th><th>最后更新</th>' +
-      '</tr></thead><tbody>';
+  function updatePager() {
+    var total = state.rows.length;
+    if (state.waterfall) {
+      $('pager').hidden = false;
+      $('prev').hidden = true;
+      $('next').hidden = false;
+      var done = state.shown >= total;
+      $('next').disabled = done;
+      $('next').textContent = done ? '已全部加载' : '加载更多';
+      $('pageInfo').textContent = '已显示 ' + state.shown + ' / ' + total + ' 本';
+    } else {
+      var maxPage = Math.max(1, Math.ceil(total / pageSize()));
+      $('prev').hidden = false;
+      $('next').hidden = false;
+      $('next').disabled = false;
+      $('next').textContent = '下一页';
+      $('pager').hidden = maxPage <= 1;
+      $('pageInfo').textContent = '第 ' + state.page + ' / ' + maxPage + ' 页';
+    }
+  }
 
+  // 瀑布流：把下一批数据追加到已有内容之后（replace=true 时先建立容器）
+  function appendMore() {
+    var start = state.shown;
+    if (start >= state.rows.length) return false;
+    var slice = state.rows.slice(start, start + pageSize());
+    renderSlice(slice, start, start === 0);
+    state.shown = start + slice.length;
+    updatePager();
+    return true;
+  }
+
+  var LIST_HEAD = '<th>排名</th><th>书名</th><th>作者</th><th>作者等级</th><th>在读</th>' +
+    '<th>近14天趋势</th><th>字数</th><th>分类</th><th>榜单</th><th>最后更新</th>';
+
+  function catText(r) {
+    var cats = Object.keys(r.lists);
+    return cats.length > 2 ? (cats.slice(0, 2).join('/') + ' 等' + cats.length + '类') : cats.join('/');
+  }
+  function rankTypeText(r) {
+    var t = {};
+    Object.keys(r.lists).forEach(function (c) { t[r.lists[c]] = 1; });
+    return Object.keys(t).join('/');
+  }
+
+  // 统一渲染入口：replace=true 重建容器，否则追加
+  function renderSlice(slice, start, replace) {
+    var content = $('content');
+    if (state.mode === 'grid') {
+      if (replace) content.innerHTML = '<div class="cards"></div>';
+      content.querySelector('.cards').insertAdjacentHTML('beforeend', gridCardsHtml(slice, start));
+      applyCovers(content);
+    } else if (isNarrow()) {
+      // 窄屏：改用堆叠行，任何宽度都不会横向溢出
+      if (replace) content.innerHTML = '<div class="mlist"></div>';
+      content.querySelector('.mlist').insertAdjacentHTML('beforeend', mobileRowsHtml(slice, start));
+    } else {
+      if (replace) content.innerHTML = '<table><thead><tr>' + LIST_HEAD + '</tr></thead><tbody></tbody></table>';
+      content.querySelector('tbody').insertAdjacentHTML('beforeend', listRowsHtml(slice, start));
+    }
+  }
+
+  function listRowsHtml(slice, start) {
+    var html = '';
     slice.forEach(function (r, i) {
       var rank = start + i + 1;
-      var cats = Object.keys(r.lists);
-      var catTxt = cats.length > 2 ? (cats.slice(0, 2).join('/') + ' 等' + cats.length + '类') : cats.join('/');
-      var rankTypes = {};
-      cats.forEach(function (c) { rankTypes[r.lists[c]] = 1; });
       html += '<tr data-id="' + esc(r.bookId) + '">' +
         '<td><span class="rk' + (rank <= 3 ? ' top' : '') + '">' + rank + '</span></td>' +
         '<td class="name" title="' + esc(r.bookName) + '">' + esc(r.bookName) + '</td>' +
@@ -752,18 +1027,36 @@ a.author:hover{text-decoration:underline}
         '<td class="num">' + fmtWan(r.readCount) + '</td>' +
         '<td>' + sparklineHtml(r.read14, state.date) + '</td>' +
         '<td class="num">' + fmtWan(r.wordNumber) + '</td>' +
-        '<td class="cat">' + esc(catTxt) + '</td>' +
-        '<td class="cat">' + esc(Object.keys(rankTypes).join('/')) + '</td>' +
+        '<td class="cat">' + esc(catText(r)) + '</td>' +
+        '<td class="cat">' + esc(rankTypeText(r)) + '</td>' +
         '<td class="time">' + esc(r.lastUpdate) + '</td>' +
         '</tr>';
     });
-    html += '</tbody></table>';
-    $('content').innerHTML = html;
+    return html;
   }
 
-  // ---------------- 图文模式（封面网格） ----------------
-  function renderGrid(slice, start) {
-    var html = '<div class="cards">';
+  function mobileRowsHtml(slice, start) {
+    var html = '';
+    slice.forEach(function (r, i) {
+      var rank = start + i + 1;
+      var rt = rankTypeText(r);
+      html += '<div class="mrow" data-id="' + esc(r.bookId) + '">' +
+        '<span class="rk' + (rank <= 3 ? ' top' : '') + '">' + rank + '</span>' +
+        '<div class="mmid">' +
+        '<div class="mtitle" title="' + esc(r.bookName) + '">' + esc(r.bookName) + '</div>' +
+        '<div class="msub">' + (authorLink(r.author, r.uid) || '-') +
+        (r.authorLevel ? '　·　' + esc(r.authorLevel) : '') + '</div>' +
+        '<div class="msub">' + esc(catText(r)) + (rt ? '　·　' + esc(rt) : '') + '</div>' +
+        '</div>' +
+        '<div class="mstat">在读 <b>' + fmtWan(r.readCount) + '</b><br>' +
+        '字数 <b>' + fmtWan(r.wordNumber) + '</b></div>' +
+        '</div>';
+    });
+    return html;
+  }
+
+  function gridCardsHtml(slice, start) {
+    var html = '';
     slice.forEach(function (r, i) {
       var rank = start + i + 1;
       html += '<div class="card" data-id="' + esc(r.bookId) + '">' +
@@ -782,13 +1075,16 @@ a.author:hover{text-decoration:underline}
         '</div>' +
         '</div></div>';
     });
-    html += '</div>';
-    var content = $('content');
-    content.innerHTML = html;
-    // 封面统一走 setCover（含备用域名回退），img 尺寸由 CSS 控制、object-fit:cover 保证不变形
-    Array.prototype.forEach.call(content.querySelectorAll('img[data-cover]'), function (img) {
-      setCover(img, img.getAttribute('data-cover'));
-    });
+    return html;
+  }
+
+  // 封面走 setCover（含备用域名回退）；标记已处理，便于瀑布流追加时只处理新图
+  function applyCovers(root) {
+    Array.prototype.forEach.call(
+      root.querySelectorAll('img[data-cover]:not([data-cover-done])'), function (img) {
+        img.setAttribute('data-cover-done', '1');
+        setCover(img, img.getAttribute('data-cover'));
+      });
   }
 
   // ---------------- 鼠标悬停浮层预览封面 ----------------
@@ -800,7 +1096,7 @@ a.author:hover{text-decoration:underline}
     hoverBound = true;
     var content = $('content');
     content.addEventListener('mouseover', function (e) {
-      var tr = e.target.closest ? e.target.closest('tr[data-id]') : null;
+      var tr = e.target.closest ? e.target.closest('[data-id]') : null;
       if (!tr) return;
       var id = tr.getAttribute('data-id');
       var r = state.byId[id];
@@ -818,7 +1114,7 @@ a.author:hover{text-decoration:underline}
       if (!$('pop').hidden) positionPop(e);
     });
     content.addEventListener('mouseout', function (e) {
-      var tr = e.target.closest ? e.target.closest('tr[data-id]') : null;
+      var tr = e.target.closest ? e.target.closest('[data-id]') : null;
       if (tr) { hoverId = null; $('pop').hidden = true; }
     });
   }
