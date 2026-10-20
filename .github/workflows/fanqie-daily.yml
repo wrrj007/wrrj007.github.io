@@ -2,10 +2,10 @@ name: 番茄榜单每日采集
 
 on:
   schedule:
-    # GitHub Actions 使用 UTC；UTC 12:00 = 北京时间 20:00（采集到的是「前一天」的数据）
-    - cron: '0 12 * * *'
-    # UTC 14:30 = 北京时间 22:30，作为 20:00 那次失败时的兜底重跑（成功则自动跳过）
-    - cron: '30 14 * * *'
+    # GitHub Actions 使用 UTC；UTC 12:00 = 北京时间 19:00（采集到的是「前一天」的数据）
+    - cron: '0 11 * * *'
+    # UTC 14:30 = 北京时间 21:30，作为 19:00 那次失败时的兜底重跑（成功则自动跳过）
+    - cron: '30 13 * * *'
   workflow_dispatch:
     inputs:
       save_top:
